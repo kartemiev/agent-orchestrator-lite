@@ -5,6 +5,80 @@
 Облегчённая публичная версия `agent-orchestrator`: только базовый контур
 исполнения готового JSON-плана через OpenHands под управлением Temporal.
 
+## Концепции и терминология
+
+Четыре термина объясняют почти всё, что происходит внутри оркестратора.
+Прочитайте этот раздел до описания архитектуры — всё дальнейшее опирается на
+эти четыре идеи.
+
+| Термин | Одной фразой | Бытовой аналог |
+|---|---|---|
+| **Спринт** (Execution Plan) | Один JSON-документ описывает фичу целиком. | Рецепт всего ужина, а не одной луковицы. |
+| **DAG** | Граф шагов, где `depends_on` задаёт стрелки. | Список дел, где часть пунктов блокирует другие. |
+| **Волна исполнения** | Все разблокированные шаги уровня идут параллельно. | Несколько поваров, каждый со своим блюдом. |
+| **Human-in-the-Loop (HITL)** | Человек утверждает план до старта первого агента. | Предполётный чек-лист, который подписывает пилот. |
+
+### Спринт (Sprint / Execution Plan)
+
+**Спринт** — единица работы: один JSON-план = один workflow = один изолированный
+workspace `/app/workspace/runs/{workflow_id}`. План не описывает, *как* писать
+код, — он описывает, *какие* шаги выполнить, какой моделью и в каком порядке.
+Пример: [`self-update.json`](./examples/self-update.json) — спринт из 5 шагов.
+
+```json
+{
+  "graph_name": "Self-Update Sprint",
+  "tasks": [{ "id": "task_0_git_sync", "depends_on": [], "engine": "openhands" }]
+}
+```
+
+### DAG (Directed Acyclic Graph)
+
+Шаги образуют граф, а не плоский список. Каждый шаг объявляет свои предпосылки
+в `depends_on` и может стартовать только тогда, когда все перечисленные там id
+завершены.
+
+- **Directed (направленный)** — у зависимостей есть направление:
+  `git-sync → backend`, но не обратно.
+- **Acyclic (без циклов)** — петель нет. Если A ждёт B, а B ждёт A, workflow
+  останавливается с `RuntimeError: cyclic dependency or unreachable step`.
+
+```
+Волна 1         Волна 2                     Волна 3    Волна 4
+git-sync ──┬──→ backend/docs ──┐
+           └──→ ui           ──┴──────────→ tests ───→ deliver (PR)
+```
+
+### Волна исполнения (Wave Execution)
+
+**Волна** — это один «этаж» DAG: все шаги, готовые к запуску в один и тот же
+момент. Исполнитель собирает готовые шаги и запускает их одновременно через
+`asyncio.gather`, дожидается завершения всей волны, затем вычисляет следующую.
+
+- Параллелизм задаётся **только** через `depends_on`. `priority` здесь ничего не
+  меняет и никогда не заставляет независимые шаги ждать друг друга.
+- Ширина волны ограничена `wave_max_concurrency` (в плане / в запросе) или
+  `WAVE_MAX_CONCURRENCY` (по умолчанию `4`, потолок `32`); лишние готовые шаги
+  запускаются батчами.
+- Падение изолируется: упавший шаг отбрасывается, зависящие от него шаги
+  пропускаются, а независимые шаги той же волны всё равно доходят до конца.
+- Финальная доставка `git push` + Pull Request выполняется только при отсутствии
+  сбоев.
+
+### Human-in-the-Loop (HITL)
+
+Перед запуском Волны 1 workflow останавливается на гейте подтверждения:
+публикует разобранный план и ждёт сигнала.
+
+| Сигнал / флаг | Что происходит |
+|---|---|
+| `approve_plan_signal` | План принят — человек может даже исправить его перед запуском. |
+| `reject_plan_signal` | План отклонён с указанием причины; ничего не исполняется. |
+| `auto_approve` | Гейт пропускается для доверенных готовых планов (чекбокс в Streamlit или `"auto_approve": true` в вызове API). |
+
+Именно этот гейт делает безопасной передачу оркестратору целой фичи: человек
+проверяет декомпозицию, а не каждую сгенерированную строку кода.
+
 ## Что внутри
 
 - **FastAPI Gateway** (`orchestrator/main.py`) — `GET /health` и `POST /api/v1/plan/direct`.
@@ -28,7 +102,7 @@
 ## Быстрый старт
 
 ```bash
-cd /home/kartemiev/projects/agent-orchestrator-lite
+cd agent-orchestrator-lite
 cp .env.example .env        # заполните LLM_API_KEY и GITHUB_TOKEN
 docker compose up -d
 ```
@@ -43,6 +117,29 @@ docker compose up -d
 | OpenHands | http://127.0.0.1:8000 |
 
 Остановка: `docker compose down`.
+
+## Продакшен и Безопасность
+
+Стек выше слушает только `127.0.0.1`. Прежде чем открывать его в интернет
+(Streamlit UI, Gateway API, вебхуки), пройдите отдельную инструкцию:
+
+📘 **[Безопасный публичный деплой через Nginx Proxy Manager и Cloudflare Access](docs/deployment/securing-with-npm-and-cloudflare.ru.md)**
+
+Что в ней есть, по шагам:
+
+- **Nginx Proxy Manager** — proxy hosts для `agent-ui:8501` и
+  `agent-orchestrator:8000`, переиспользуемый **Access List** (HTTP Basic Auth)
+  и импорт **кастомного SSL-сертификата** (StartSSL / Custom CRT + Key либо
+  сертификат Cloudflare Origin CA).
+- **⚠️ `Websockets Support`** — тумблер, обязательный для Streamlit-хоста: без
+  него дашборд загружается, но «висит» на «Please wait…» / «Connection error».
+- **Cloudflare Zero Trust / Access** — Access-приложение с входом по **Email PIN /
+  OTP** для UI и **исключения (Bypass) / service tokens** для `/api/*` и
+  `/webhook/*`, чтобы CI и GitHub-вебхуки не блокировались авторизацией.
+- Команды проверки (`curl`, `openssl`, проба WebSocket), таблица диагностики и
+  чек-лист безопасности.
+
+English version: [`securing-with-npm-and-cloudflare.md`](docs/deployment/securing-with-npm-and-cloudflare.md).
 
 ## Запуск workflow
 
@@ -138,7 +235,7 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 ## Переменные окружения
 
 См. [`.env.example`](./.env.example). Подробная настройка LLM-провайдеров
-(OpenAI / OpenRouter / DeepSeek) и контейнера OpenHands — в
+(OpenAI / Anthropic / OpenRouter / DeepSeek) и контейнера OpenHands — в
 [`openhands-setup.md`](./docs/openhands-setup.ru.md). Ключевые:
 
 | Переменная | Описание | По умолчанию |
@@ -146,6 +243,7 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 | `LLM_API_KEY` | Ключ LLM для OpenHands | — |
 | `LLM_MODEL` | Глобальная модель (из `.env`; базовое имя или LiteLLM-префикс) | `deepseek-v4-pro` |
 | `GITHUB_TOKEN` | Для клонирования и создания PR | — |
+| `GIT_TERMINAL_PROMPT` | Отключает интерактивные подсказки git (агент не зависает) | `0` |
 | `BIND_IP` | IP публикации портов | `127.0.0.1` |
 | `CLEANUP_WORKSPACE` | Удалять workspace после workflow | `true` |
 | `WAVE_MAX_CONCURRENCY` | Ширина волны DAG | `4` |
@@ -178,9 +276,15 @@ docs/
   blueprints/
     tree-refactoring-blueprint.md     Blueprint рефакторинга дерева
     tree-refactoring-blueprint.ru.md  То же на русском
+  deployment/
+    securing-with-npm-and-cloudflare.md     NPM + Cloudflare Access: публичный деплой
+    securing-with-npm-and-cloudflare.ru.md  То же на русском
 AGENTS.md                     Спецификация JSON-планов для LLM-архитектора
 AGENTS.ru.md                  То же на русском
 README.md                     Главный README (English)
 README.ru.md                  Главный README (Русский)
+.env.example                  Шаблон переменных окружения (копируется в .env)
+.gitignore                    Игнорируемые файлы (секреты, кэши, артефакты)
+.dockerignore                 Правила исключения для сборки Docker
 LICENSE                       MIT
 ```

@@ -248,8 +248,7 @@ class EnterpriseHITLWorkflow:
             try:
                 await workflow.execute_activity(
                     "cleanup_workspace",
-                    workspace_dir,
-                    preserve,
+                    args=[workspace_dir, preserve],
                     start_to_close_timeout=timedelta(minutes=2),
                 )
             except Exception as exc:

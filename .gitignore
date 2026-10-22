@@ -43,6 +43,9 @@ build/
 workspace/*
 !workspace/.gitkeep
 
+# E2E-спринт артефакты (ссылаются на приватные репозитории — не публикуем)
+examples/synthetic-test.json
+
 # Binary packages & archives
 *.deb
 *.rpm

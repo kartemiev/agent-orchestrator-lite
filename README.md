@@ -5,6 +5,77 @@
 A lightweight public version of `agent-orchestrator`: only the core contour for
 executing a pre-built JSON plan through OpenHands under Temporal control.
 
+## Key Concepts & Glossary
+
+Four terms explain almost everything about how the orchestrator thinks. Read
+this before the architecture section — everything below builds on these ideas.
+
+| Term | In one sentence | Everyday analogy |
+|---|---|---|
+| **Sprint** (Execution Plan) | One JSON document describes the whole feature. | A recipe for the entire dinner, not one chopped onion. |
+| **DAG** | A step graph where `depends_on` sets the arrows. | A to-do list where some items block others. |
+| **Wave Execution** | All unblocked steps of one level run in parallel. | Several cooks, each starting their own dish. |
+| **Human-in-the-Loop (HITL)** | A human approves the plan before the first agent starts. | The pre-flight checklist signed by the pilot. |
+
+### Sprint (Execution Plan)
+
+A **sprint** is the unit of work: one JSON plan = one workflow = one isolated
+workspace `/app/workspace/runs/{workflow_id}`. The plan does not describe *how*
+to write the code — it describes *which* steps to run, with which model and in
+which order. Example: [`self-update.json`](./examples/self-update.json) is a
+sprint of 5 steps.
+
+```json
+{
+  "graph_name": "Self-Update Sprint",
+  "tasks": [{ "id": "task_0_git_sync", "depends_on": [], "engine": "openhands" }]
+}
+```
+
+### DAG (Directed Acyclic Graph)
+
+Steps form a graph, not a flat list. Each step declares its prerequisites in
+`depends_on`, and may start only when every id listed there is done.
+
+- **Directed** — dependencies have a direction: `git-sync → backend`, never back.
+- **Acyclic** — no loops. If A waits for B and B waits for A, the workflow stops
+  with `RuntimeError: cyclic dependency or unreachable step`.
+
+```
+Wave 1          Wave 2                      Wave 3     Wave 4
+git-sync ──┬──→ backend/docs ──┐
+           └──→ ui           ──┴──────────→ tests ───→ deliver (PR)
+```
+
+### Wave Execution
+
+A **wave** is one "floor" of the DAG: every step that is ready at the same
+moment. The executor collects the ready steps and launches them concurrently
+with `asyncio.gather`, waits for the whole wave, then computes the next one.
+
+- Parallelism is defined **only** by `depends_on`. `priority` changes nothing
+  here and never makes independent steps wait for each other.
+- The wave width is capped by `wave_max_concurrency` (per plan / per request) or
+  by `WAVE_MAX_CONCURRENCY` (default `4`, ceiling `32`); extra ready steps are
+  started in batches.
+- A failure is isolated: the failed step is dropped, steps depending on it are
+  skipped, and independent steps of the same wave still finish.
+- The final `git push` + Pull Request delivery runs only if no step failed.
+
+### Human-in-the-Loop (HITL)
+
+Before Wave 1 runs, the workflow parks at an approval gate: it publishes the
+parsed plan and waits for a signal.
+
+| Signal / flag | Effect |
+|---|---|
+| `approve_plan_signal` | The plan is accepted — and may even be corrected by the human before launch. |
+| `reject_plan_signal` | The plan is rejected with a reason; nothing is executed. |
+| `auto_approve` | The gate is skipped for trusted, ready-made plans (Streamlit checkbox or `"auto_approve": true` in the API call). |
+
+The gate is what makes it safe to hand a whole feature to the orchestrator: the
+human reviews the decomposition, not every generated line of code.
+
 ## What's inside
 
 - **FastAPI Gateway** (`orchestrator/main.py`) — `GET /health` and `POST /api/v1/plan/direct`.
@@ -28,7 +99,7 @@ executing a pre-built JSON plan through OpenHands under Temporal control.
 ## Quick start
 
 ```bash
-cd /home/kartemiev/projects/agent-orchestrator-lite
+cd agent-orchestrator-lite
 cp .env.example .env        # fill in LLM_API_KEY and GITHUB_TOKEN
 docker compose up -d
 ```
@@ -43,6 +114,30 @@ Once everything is up:
 | OpenHands | http://127.0.0.1:8000 |
 
 Shutdown: `docker compose down`.
+
+## Production Deployment & Security
+
+The stack above listens on `127.0.0.1` only. Before exposing it to the internet
+(Streamlit UI, Gateway API, webhooks), follow the dedicated guide:
+
+📘 **[Securing a public deployment with Nginx Proxy Manager and Cloudflare Access](docs/deployment/securing-with-npm-and-cloudflare.md)**
+
+It covers, step by step:
+
+- **Nginx Proxy Manager** — proxy hosts for `agent-ui:8501` and
+  `agent-orchestrator:8000`, a reusable **Access List** (HTTP Basic Auth), and
+  importing a **custom SSL certificate** (StartSSL / Custom CRT + Key, or a
+  Cloudflare Origin CA certificate).
+- **⚠️ `Websockets Support`** — the toggle that must be ON for the Streamlit
+  host; without it the dashboard loads but hangs on “Please wait…” /
+  “Connection error”.
+- **Cloudflare Zero Trust / Access** — an Access application with **Email PIN /
+  OTP** login for the UI, plus **Bypass / service-token rules** for `/api/*` and
+  `/webhook/*` so CI and GitHub webhooks are not blocked by the identity gate.
+- Verification commands (`curl`, `openssl`, WebSocket probe), a troubleshooting
+  table and a security checklist.
+
+Russian version: [`securing-with-npm-and-cloudflare.ru.md`](docs/deployment/securing-with-npm-and-cloudflare.ru.md).
 
 ## Running a workflow
 
@@ -138,7 +233,7 @@ The plan contains 5 tasks across 4 waves: `git-sync` → parallel
 ## Environment variables
 
 See [`.env.example`](./.env.example). Detailed configuration of LLM providers
-(OpenAI / OpenRouter / DeepSeek) and of the OpenHands container is described in
+(OpenAI / Anthropic / OpenRouter / DeepSeek) and of the OpenHands container is described in
 [`openhands-setup.md`](./docs/openhands-setup.md). The key ones:
 
 | Variable | Description | Default |
@@ -146,6 +241,7 @@ See [`.env.example`](./.env.example). Detailed configuration of LLM providers
 | `LLM_API_KEY` | LLM key for OpenHands | — |
 | `LLM_MODEL` | Global model (from `.env`; base name or LiteLLM prefix) | `deepseek-v4-pro` |
 | `GITHUB_TOKEN` | For cloning and creating PRs | — |
+| `GIT_TERMINAL_PROMPT` | Disable interactive git prompts (prevents agent hangs) | `0` |
 | `BIND_IP` | IP used to publish ports | `127.0.0.1` |
 | `CLEANUP_WORKSPACE` | Remove the workspace after a workflow | `true` |
 | `WAVE_MAX_CONCURRENCY` | DAG wave width | `4` |
@@ -178,9 +274,15 @@ docs/
   blueprints/
     tree-refactoring-blueprint.md     Tree refactoring blueprint
     tree-refactoring-blueprint.ru.md  Same in Russian
+  deployment/
+    securing-with-npm-and-cloudflare.md     NPM + Cloudflare Access public deploy
+    securing-with-npm-and-cloudflare.ru.md  Same in Russian
 AGENTS.md                     JSON plan specification for an LLM architect
 AGENTS.ru.md                  Same in Russian
 README.md                     Main README (English)
 README.ru.md                  Main README (Russian)
+.env.example                  Environment variables template (copy to .env)
+.gitignore                    Ignored files (secrets, caches, artifacts)
+.dockerignore                 Docker build ignore rules
 LICENSE                       MIT
 ```

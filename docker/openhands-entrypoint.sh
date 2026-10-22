@@ -37,4 +37,19 @@ if [ -d /app/workspace ]; then
   chmod 0777 /app/workspace/runs 2>/dev/null || true
 fi
 
+# ────────────────────────────────────────────────────────────────────────────
+# Git authentication for private GitHub repositories.
+# OpenHands receives GITHUB_TOKEN from the environment. Configure a credential
+# helper so `git clone` / `fetch` / `push` authenticate without an interactive
+# prompt. The token is NOT written to disk: the helper reads it at runtime.
+# ────────────────────────────────────────────────────────────────────────────
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+  GIT_CREDENTIAL_HELPER='!f() { test "$1" = get && printf "username=x-access-token\npassword=%s\n" "${GITHUB_TOKEN}"; }; f'
+  git config --global credential.helper "$GIT_CREDENTIAL_HELPER" 2>/dev/null || true
+  if command -v sudo >/dev/null 2>&1; then
+    sudo -n git config --system credential.helper "$GIT_CREDENTIAL_HELPER" 2>/dev/null || true
+  fi
+fi
+export GIT_TERMINAL_PROMPT=0
+
 exec tini -- /opt/agent-canvas/entrypoint.sh "$@"

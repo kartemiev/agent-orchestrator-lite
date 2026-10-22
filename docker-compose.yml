@@ -14,6 +14,8 @@
 #   docker compose up -d
 # ═══════════════════════════════════════════════════════════════════════════════
 
+name: agent-orchestrator-lite
+
 services:
   temporal-db:
     image: postgres:15-alpine
@@ -81,6 +83,7 @@ services:
       - LLM_API_URL=${LLM_API_URL:-https://api.deepseek.com}
       - LLM_MODEL=${LLM_MODEL:-deepseek-v4-pro}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GIT_TERMINAL_PROMPT=0
       - GIT_CONFIG_COUNT=1
       - GIT_CONFIG_KEY_0=safe.directory
       - GIT_CONFIG_VALUE_0=*
@@ -101,7 +104,7 @@ services:
     build:
       context: ./orchestrator
       dockerfile: Dockerfile
-    container_name: agent-orchestrator
+    container_name: agent-orchestrator-lite
     restart: unless-stopped
     ports:
       - "${BIND_IP:-127.0.0.1}:8085:8000"
@@ -110,6 +113,7 @@ services:
       - OPENHANDS_API_URL=http://openhands:8000
       - OPENHANDS_API_KEY=${OPENHANDS_SESSION_API_KEY:-dev}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GIT_TERMINAL_PROMPT=0
       - LLM_API_URL=${LLM_API_URL:-https://api.deepseek.com}
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_MODEL=${LLM_MODEL:-deepseek-v4-pro}

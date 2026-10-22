@@ -19,7 +19,7 @@ task.
 The LLM configuration is passed to OpenHands in two ways:
 
 1. **Through environment variables** (in `docker-compose.yml`) — the
-   `agent-orchestrator` container receives `LLM_API_KEY`, `LLM_API_URL`, `LLM_MODEL` and
+   `agent-orchestrator-lite` container receives `LLM_API_KEY`, `LLM_API_URL`, `LLM_MODEL` and
    `GITHUB_TOKEN` from `.env`.
 2. **Through the API request that creates a conversation** — the
    `execute_openhands_phase` activity in `orchestrator/activities.py` sends a
@@ -36,7 +36,7 @@ field) and the global model through `LLM_MODEL`.
 
 ## LLM configuration in `.env`
 
-Key variables (read by `agent-orchestrator` and passed to OpenHands):
+Key variables (read by `agent-orchestrator-lite` and passed to OpenHands):
 
 | Variable | Purpose |
 |---|---|
@@ -44,6 +44,13 @@ Key variables (read by `agent-orchestrator` and passed to OpenHands):
 | `LLM_API_URL` | Provider base endpoint. Any OpenAI-compatible API is supported. |
 | `LLM_MODEL` | Global default model (read from .env; base name or LiteLLM prefix). |
 | `GITHUB_TOKEN` | GitHub token for clone/pull/push/PR from the `openhands` container. |
+
+> ⚠️ **Important:** personal **ChatGPT Plus/Team** or **Claude Pro/Team**
+> subscriptions **do not work** for the API. A subscription only covers the web
+> and desktop chat apps; it does not grant API access and does not produce a key
+> for `LLM_API_KEY`. You need a billing-enabled account with a topped-up balance
+> in [OpenAI Platform](https://platform.openai.com/) or
+> [Anthropic Console](https://console.anthropic.com/).
 
 ### Supported providers
 
@@ -60,13 +67,31 @@ LLM_API_URL=https://api.deepseek.com
 LLM_MODEL=deepseek-v4-pro
 ```
 
-**OpenAI**
+**OpenAI (GPT-4o)** — a ready-made `.env` block
 
 ```dotenv
-LLM_API_KEY=sk-...
+LLM_API_KEY=sk-proj-...
 LLM_API_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-4o
 ```
+
+Create the key in [OpenAI Platform → API keys](https://platform.openai.com/api-keys)
+(a project-scoped `sk-proj-...` key) and make sure the account has a positive
+balance: **Settings → Billing → Add payment method / Add credits**. A ChatGPT
+Plus subscription does not add balance to the API.
+
+**Anthropic (Claude 3.5 Sonnet)** — a ready-made `.env` block
+
+```dotenv
+LLM_API_KEY=sk-ant-api03-...
+LLM_API_URL=https://api.anthropic.com/v1
+LLM_MODEL=claude-3-5-sonnet-20241022
+```
+
+Create the key in [Anthropic Console → API keys](https://console.anthropic.com/settings/keys)
+(a key with the `sk-ant-api03-...` prefix) and top up credits in
+**Anthropic Console → Billing**. A Claude Pro subscription does not give API
+access.
 
 **OpenRouter**
 
@@ -78,9 +103,14 @@ LLM_MODEL=openrouter/openai/gpt-4o-mini
 
 > The model name (`LLM_MODEL` and the per-node `model`) is taken from `.env` and
 > passed to OpenHands unchanged. Both forms are allowed: a base name
-> (`deepseek-v4-pro`, `gpt-4o`, `claude-3-5-sonnet`) and a LiteLLM prefix
-> (`openrouter/...`, `deepseek/...`). The only thing that matters is that the name
-> matches the selected `LLM_API_URL`.
+> (`deepseek-v4-pro`, `gpt-4o`, `claude-3-5-sonnet-20241022`) and a LiteLLM prefix
+> (`openrouter/...`, `deepseek/...`, `anthropic/...`). The only thing that matters
+> is that the name matches the selected `LLM_API_URL`.
+>
+> The key and the endpoint always change together: when switching providers,
+> replace all three variables (`LLM_API_KEY`, `LLM_API_URL`, `LLM_MODEL`) and
+> restart the stack (`docker compose up -d`), otherwise the request goes to the
+> old endpoint with a foreign key and fails with `401`.
 
 ## Passing variables in `docker-compose.yml`
 
@@ -100,7 +130,7 @@ LLM_MODEL=openrouter/openai/gpt-4o-mini
       - WAVE_MAX_CONCURRENCY=${WAVE_MAX_CONCURRENCY:-4}
 ```
 
-Here `LLM_API_KEY` / `LLM_API_URL` / `LLM_MODEL` land in the `agent-orchestrator`
+Here `LLM_API_KEY` / `LLM_API_URL` / `LLM_MODEL` land in the `agent-orchestrator-lite`
 process, from where the `execute_openhands_phase` activity takes them for every
 OpenHands conversation.
 
@@ -174,12 +204,12 @@ The `execute_openhands_phase` activity builds the conversation payload:
 
 ## Access rights and Volumes
 
-The shared workspace is mounted into several containers (`agent-orchestrator` and
+The shared workspace is mounted into several containers (`agent-orchestrator-lite` and
 `openhands`), but each container runs under its own UID:
 
 | Container | UID |
 |---|---|
-| `agent-orchestrator` | `root` (0) |
+| `agent-orchestrator-lite` | `root` (0) |
 | `openhands` | `10001` |
 | Host | `1000` |
 
@@ -199,7 +229,7 @@ combination is used:
   and that the `runs/` subdirectories stay accessible to the OpenHands process
   (UID 10001) even after the worker removes the directory.
 
-In addition, the `agent-orchestrator` container is started with `umask 000`
+In addition, the `agent-orchestrator-lite` container is started with `umask 000`
 (`command: sh -c "umask 000; ..."`), and `orchestrator/worker.py` calls
 `ensure_runs_dir_writable()` on startup to set `0777` on `runs/`.
 
@@ -238,6 +268,6 @@ both variables.
    curl http://127.0.0.1:8085/health
    ```
    → `{"status": "ok"}`
-4. Run a minimal plan and inspect the phase logs in `docker compose logs
-   agent-orchestrator` (the line `OpenHands conversation created: ...` means
+4. Run a minimal plan and inspect the phase logs in `docker logs
+   agent-orchestrator-lite` (the line `OpenHands conversation created: ...` means
    that the conversation with the selected model was created successfully).

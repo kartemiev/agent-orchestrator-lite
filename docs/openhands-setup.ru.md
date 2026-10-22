@@ -18,7 +18,7 @@
 Конфигурация LLM передаётся в OpenHands двумя путями:
 
 1. **Через переменные окружения** (в `docker-compose.yml`) — контейнер
-   `agent-orchestrator` получает `LLM_API_KEY`, `LLM_API_URL`, `LLM_MODEL` и
+   `agent-orchestrator-lite` получает `LLM_API_KEY`, `LLM_API_URL`, `LLM_MODEL` и
    `GITHUB_TOKEN` из `.env`.
 2. **Через API-запрос при создании разговора** — активность
    `execute_openhands_phase` в `orchestrator/activities.py` отправляет на
@@ -35,7 +35,7 @@
 
 ## Конфигурация LLM в `.env`
 
-Ключевые переменные (читаются `agent-orchestrator` и прокидываются в OpenHands):
+Ключевые переменные (читаются `agent-orchestrator-lite` и прокидываются в OpenHands):
 
 | Переменная | Назначение |
 |---|---|
@@ -43,6 +43,13 @@
 | `LLM_API_URL` | Базовый эндпоинт провайдера. Поддерживается любой OpenAI-совместимый API. |
 | `LLM_MODEL` | Глобальная модель по умолчанию (читается из .env; базовое имя или LiteLLM-префикс). |
 | `GITHUB_TOKEN` | Токен GitHub для clone/pull/push/PR из контейнера `openhands`. |
+
+> ⚠️ **Важно:** Личные подписки ChatGPT Plus/Team или Claude Pro/Team **не
+> подходят** для API. Подписка покрывает только веб- и десктоп-чаты, не даёт
+> доступа к API и не выдаёт ключ для `LLM_API_KEY`. Требуются платёжные аккаунты
+> с пополнением баланса в платформах
+> [OpenAI Platform](https://platform.openai.com/) или
+> [Anthropic Console](https://console.anthropic.com/).
 
 ### Поддерживаемые провайдеры
 
@@ -59,13 +66,30 @@ LLM_API_URL=https://api.deepseek.com
 LLM_MODEL=deepseek-v4-pro
 ```
 
-**OpenAI**
+**OpenAI (GPT-4o)** — готовый блок для `.env`
 
 ```dotenv
-LLM_API_KEY=sk-...
+LLM_API_KEY=sk-proj-...
 LLM_API_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-4o
 ```
+
+Ключ создаётся в [OpenAI Platform → API keys](https://platform.openai.com/api-keys)
+(ключ проекта с префиксом `sk-proj-...`), а на аккаунте должен быть
+положительный баланс: **Settings → Billing → Add payment method / Add credits**.
+Подписка ChatGPT Plus баланс API не пополняет.
+
+**Anthropic (Claude 3.5 Sonnet)** — готовый блок для `.env`
+
+```dotenv
+LLM_API_KEY=sk-ant-api03-...
+LLM_API_URL=https://api.anthropic.com/v1
+LLM_MODEL=claude-3-5-sonnet-20241022
+```
+
+Ключ создаётся в [Anthropic Console → API keys](https://console.anthropic.com/settings/keys)
+(ключ с префиксом `sk-ant-api03-...`), а кредиты пополняются в
+**Anthropic Console → Billing**. Подписка Claude Pro доступа к API не даёт.
 
 **OpenRouter**
 
@@ -77,9 +101,14 @@ LLM_MODEL=openrouter/openai/gpt-4o-mini
 
 > Имя модели (`LLM_MODEL` и per-node `model`) берётся из `.env` и передаётся в
 > OpenHands без изменений. Допустимы оба варианта: базовое имя
-> (`deepseek-v4-pro`, `gpt-4o`, `claude-3-5-sonnet`) и LiteLLM-префикс
-> (`openrouter/...`, `deepseek/...`). Главное — чтобы имя соответствовало
-> выбранному `LLM_API_URL`.
+> (`deepseek-v4-pro`, `gpt-4o`, `claude-3-5-sonnet-20241022`) и LiteLLM-префикс
+> (`openrouter/...`, `deepseek/...`, `anthropic/...`). Главное — чтобы имя
+> соответствовало выбранному `LLM_API_URL`.
+>
+> Ключ и эндпоинт меняются вместе: при смене провайдера замените все три
+> переменные (`LLM_API_KEY`, `LLM_API_URL`, `LLM_MODEL`) и перезапустите стек
+> (`docker compose up -d`), иначе запрос уйдёт на старый эндпоинт с чужим ключом
+> и вернёт `401`.
 
 ## Проброс переменных в `docker-compose.yml`
 
@@ -100,7 +129,7 @@ LLM_MODEL=openrouter/openai/gpt-4o-mini
 ```
 
 Здесь `LLM_API_KEY` / `LLM_API_URL` / `LLM_MODEL` попадают в процесс
-`agent-orchestrator`, откуда активность `execute_openhands_phase` забирает их
+`agent-orchestrator-lite`, откуда активность `execute_openhands_phase` забирает их
 для каждого разговора OpenHands.
 
 ### Секция `openhands`
@@ -173,12 +202,12 @@ LLM_MODEL=openrouter/openai/gpt-4o-mini
 
 ## Права доступа и Volumes
 
-Общий workspace монтируется в несколько контейнеров (`agent-orchestrator` и
+Общий workspace монтируется в несколько контейнеров (`agent-orchestrator-lite` и
 `openhands`), но каждый контейнер работает под своим UID:
 
 | Контейнер | UID |
 |---|---|
-| `agent-orchestrator` | `root` (0) |
+| `agent-orchestrator-lite` | `root` (0) |
 | `openhands` | `10001` |
 | Хост | `1000` |
 
@@ -198,7 +227,7 @@ LLM_MODEL=openrouter/openai/gpt-4o-mini
   а подкаталоги `runs/` доступны процессу OpenHands (UID 10001) даже после
   удаления каталога воркером.
 
-Кроме того, контейнер `agent-orchestrator` запускается с `umask 000`
+Кроме того, контейнер `agent-orchestrator-lite` запускается с `umask 000`
 (`command: sh -c "umask 000; ..."`), а `orchestrator/worker.py` при старте
 вызывает `ensure_runs_dir_writable()` для установки `0777` на `runs/`.
 
@@ -237,8 +266,8 @@ OPENHANDS_SESSION_API_KEY=dev
    curl http://127.0.0.1:8085/health
    ```
    → `{"status": "ok"}`
-4. Запустите минимальный план и проверьте логи фазы в `docker compose logs
-   agent-orchestrator` (строка `OpenHands conversation created: ...` означает,
+4. Запустите минимальный план и проверьте логи фазы в `docker logs
+   agent-orchestrator-lite` (строка `OpenHands conversation created: ...` означает,
    что разговор с выбранной моделью создан успешно).
 
 
