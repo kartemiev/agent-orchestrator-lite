@@ -5,7 +5,7 @@
 провайдер-специфичную логику:
 
   - парсинг remote URL;
-  - построение auth-URL для ``git push`` (с токеном);
+  - построение URL + заголовка для ``git push`` (токен — только в ``http.extraHeader``);
   - определение default branch через REST API;
   - создание Pull Request (GitHub API v3) или Merge Request (GitLab API v4).
 
@@ -14,6 +14,7 @@ GitHub использует ``GITHUB_TOKEN`` и ``https://api.github.com``. GitL
 self-hosted — укажите свой base URL).
 """
 
+import base64
 import logging
 import os
 import re
@@ -97,18 +98,56 @@ def parse_remote(remote_url: str, provider: str) -> Tuple[str, str]:
     raise ValueError(f"Неизвестный провайдер: {provider!r}")
 
 
-def build_auth_url(
-    provider: str, project_path: str, project_name: str, token: str,
-) -> Optional[str]:
-    """Auth-URL для ``git push`` (с токеном). ``None``, если токен не задан."""
+def push_url(provider: str, project_path: str, project_name: str) -> Optional[str]:
+    """Чистый (без токена) URL для ``git push`` / ``git fetch``.
+
+    Токен в URL не встраивается: он передаётся отдельно через
+    ``http.extraHeader`` (см. :func:`auth_extra_header`), чтобы credentials не
+    попадали в URL, в ``.git/FETCH_HEAD`` и в stderr git'а.
+    """
+    if provider == PROVIDER_GITHUB:
+        return f"https://github.com/{project_path}/{project_name}.git"
+    if provider == PROVIDER_GITLAB:
+        host = re.sub(r"^[a-z][a-z0-9+.-]*://", "", GITLAB_URL).split("/", 1)[0]
+        return f"https://{host}/{project_path}.git"
+    return None
+
+
+def auth_extra_header(provider: str, token: str) -> Optional[str]:
+    """Значение ``http.extraHeader`` для аутентификации git-операций.
+
+    Эквивалент встроенного в URL токена (``x-access-token:<token>@...`` для
+    GitHub, ``oauth2:<token>@...`` для GitLab), но без раскрытия токена в URL.
+    Возвращает ``None``, если токен не задан.
+    """
     if not token:
         return None
     if provider == PROVIDER_GITHUB:
-        return f"https://x-access-token:{token}@github.com/{project_path}/{project_name}.git"
-    if provider == PROVIDER_GITLAB:
-        host = re.sub(r"^[a-z][a-z0-9+.-]*://", "", GITLAB_URL).split("/", 1)[0]
-        return f"https://oauth2:{token}@{host}/{project_path}.git"
-    return None
+        user = "x-access-token"
+    elif provider == PROVIDER_GITLAB:
+        user = "oauth2"
+    else:
+        return None
+    creds = base64.b64encode(f"{user}:{token}".encode("utf-8")).decode("ascii")
+    return f"AUTHORIZATION: basic {creds}"
+
+
+def mask_token(text: str, token: str) -> str:
+    """Заменяет токен (и его производные) в тексте на ``<redacted>``.
+
+    Применяется к stderr/stdout git-операций перед логированием и возвратом из
+    активностей, чтобы токен не утёк в Temporal History и логи.
+    """
+    if not token or not text:
+        return text
+    masked = text
+    for user in ("x-access-token", "oauth2"):
+        masked = masked.replace(f"{user}:{token}", f"{user}:<redacted>")
+        creds = base64.b64encode(f"{user}:{token}".encode("utf-8")).decode("ascii")
+        masked = masked.replace(creds, "<redacted>")
+    masked = masked.replace(quote(token, safe=""), "<redacted>")
+    masked = masked.replace(token, "<redacted>")
+    return masked
 
 def _github_default_branch(owner: str, repo: str) -> Optional[str]:
     token = os.getenv("GITHUB_TOKEN", "").strip()

@@ -99,6 +99,9 @@ class HITLWorkflow:
     def approve_plan_signal(self, updated_plan: dict):
         self.current_plan = updated_plan
         self.plan_approved = True
+        # Сбрасываем причину отклонения: повторное одобрение после reject
+        # должно корректно очищать состояние (иначе гейт вернёт отказ).
+        self.rejection_reason = ""
 
     @workflow.signal
     def reject_plan_signal(self, reason: str):

@@ -25,13 +25,23 @@ import git_provider
 import notifier
 
 # --- Конфигурация LLM (передаётся в OpenHands как api_key/base_url) ---
-LLM_API_URL = os.getenv("LLM_API_URL", "https://api.deepseek.com")
+# LLM_BASE_URL — явный синоним LLM_API_URL (приоритет у LLM_BASE_URL).
+LLM_API_URL = (
+    os.getenv("LLM_BASE_URL")
+    or os.getenv("LLM_API_URL")
+    or "https://api.deepseek.com"
+)
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-v4-pro")
 
 # --- Конфигурация OpenHands (agent-canvas) ---
 OPENHANDS_API_URL = os.getenv("OPENHANDS_API_URL", "http://openhands:8000")
-OPENHANDS_API_KEY = os.getenv("OPENHANDS_API_KEY", "dev")
+# OPENHANDS_API_KEY — каноничное имя; OPENHANDS_SESSION_API_KEY — синоним из .env.
+OPENHANDS_API_KEY = (
+    os.getenv("OPENHANDS_API_KEY")
+    or os.getenv("OPENHANDS_SESSION_API_KEY")
+    or "dev"
+)
 OPENHANDS_LOG_COMPLETIONS_DIR = os.getenv(
     "OPENHANDS_LOG_COMPLETIONS_DIR",
     "/home/openhands/.openhands/agent-canvas/logs/completions",
@@ -210,9 +220,11 @@ def _git_state(workspace_dir: str) -> dict:
             workspace_dir, type(exc).__name__, exc,
         )
 
+    default_branch = _default_branch(workspace_dir)
     try:
         log = subprocess.run(
-            ["git", "-C", workspace_dir, "log", "--oneline", "origin/main..HEAD"],
+            ["git", "-C", workspace_dir, "log", "--oneline",
+             f"origin/{default_branch}..HEAD"],
             capture_output=True, text=True, timeout=30,
         )
         if log.returncode == 0:
@@ -221,8 +233,8 @@ def _git_state(workspace_dir: str) -> dict:
             ]
     except Exception as exc:
         activity.logger.warning(
-            "git log origin/main..HEAD failed in %s: %s: %s",
-            workspace_dir, type(exc).__name__, exc,
+            "git log origin/%s..HEAD failed in %s: %s: %s",
+            default_branch, workspace_dir, type(exc).__name__, exc,
         )
 
     return state
@@ -586,30 +598,58 @@ def _provider_token(provider: str) -> str:
 
 
 def _default_branch(
-    repo_dir: str, provider: str, project_path: str, project_name: str,
+    repo_dir: str,
+    provider: Optional[str] = None,
+    project_path: Optional[str] = None,
+    project_name: Optional[str] = None,
 ) -> str:
-    branch = git_provider.default_branch(provider, project_path, project_name)
+    """Динамически определяет default branch (main / master / иные).
+
+    1) REST API провайдера (если provider задан или распознаётся по remote);
+    2) локальный ``symbolic-ref refs/remotes/origin/HEAD``;
+    3) проверка ``origin/{main,master,develop}`` через ``rev-parse --verify``.
+    """
+    branch: Optional[str] = None
+    if provider and project_path and project_name:
+        branch = git_provider.default_branch(provider, project_path, project_name)
+    else:
+        remote = _remote_url(repo_dir)
+        if remote:
+            detected = git_provider.detect_provider(remote)
+            if detected:
+                try:
+                    parsed_path, parsed_name = git_provider.parse_remote(remote, detected)
+                    branch = git_provider.default_branch(detected, parsed_path, parsed_name)
+                except ValueError:
+                    branch = None
     if branch:
         return branch
     try:
-        out = _git_run(repo_dir, "symbolic-ref", "refs/remotes/origin/HEAD", "--short")
+        out = _git_run(repo_dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
         if out.returncode == 0 and out.stdout.strip():
             return out.stdout.strip().rsplit("/", 1)[-1]
     except Exception:
         pass
-    for candidate in ("main", "master"):
+    for candidate in ("main", "master", "develop"):
         check = _git_run(repo_dir, "rev-parse", "--verify", f"origin/{candidate}")
         if check.returncode == 0:
             return candidate
     return "main"
 
 
-def _unpushed_commits(repo_dir: str, default_branch: str, auth_url: Optional[str]) -> list:
+def _unpushed_commits(
+    repo_dir: str, default_branch: str,
+    push_url: Optional[str], auth_header: Optional[str],
+) -> list:
     out = _git_run(repo_dir, "log", "--oneline", f"origin/{default_branch}..HEAD")
     if out.returncode == 0:
         return [line for line in out.stdout.splitlines() if line.strip()]
-    if auth_url:
-        fetch = _git_run(repo_dir, "fetch", "-q", auth_url, default_branch, timeout=300)
+    if push_url and auth_header:
+        # fetch с http.extraHeader: credentialed URL не пишется в .git/FETCH_HEAD.
+        fetch = _git_run(
+            repo_dir, "-c", f"http.extraHeader={auth_header}",
+            "fetch", "-q", push_url, default_branch, timeout=300,
+        )
         if fetch.returncode == 0:
             out = _git_run(repo_dir, "log", "--oneline", "FETCH_HEAD..HEAD")
             if out.returncode == 0:
@@ -625,22 +665,31 @@ def _sanitize_branch_part(name: str) -> str:
     return (name[:120].rstrip("./") or "autopilot")
 
 
-def _push_branch(repo_dir: str, auth_url: str, branch: str) -> tuple:
-    out = _git_run(repo_dir, "push", auth_url, f"HEAD:refs/heads/{branch}", timeout=300)
+def _push_branch(
+    repo_dir: str, push_url: str, auth_header: str, token: str, branch: str,
+) -> tuple:
+    out = _git_run(
+        repo_dir, "-c", f"http.extraHeader={auth_header}",
+        "push", push_url, f"HEAD:refs/heads/{branch}", timeout=300,
+    )
     if out.returncode == 0:
         return True, ""
-    first_err = (out.stderr or out.stdout).strip()[:800]
+    first_err = git_provider.mask_token((out.stderr or out.stdout).strip(), token)[:800]
     _git_run(
-        repo_dir, "fetch", "-q", auth_url,
+        repo_dir, "-c", f"http.extraHeader={auth_header}",
+        "fetch", "-q", push_url,
         f"refs/heads/{branch}:refs/remotes/origin/{branch}", timeout=300,
     )
     retry = _git_run(
-        repo_dir, "push", "--force-with-lease", auth_url,
+        repo_dir, "-c", f"http.extraHeader={auth_header}",
+        "push", "--force-with-lease", push_url,
         f"HEAD:refs/heads/{branch}", timeout=300,
     )
     if retry.returncode == 0:
         return True, first_err
-    return False, (retry.stderr or retry.stdout or first_err).strip()[:800]
+    return False, git_provider.mask_token(
+        (retry.stderr or retry.stdout or first_err).strip(), token,
+    )[:800]
 
 
 # Создание PR/MR вынесено в git_provider.create_merge_request (GitHub + GitLab).
@@ -777,7 +826,8 @@ def git_push_and_create_pr(params: dict) -> dict:
 
     default_branch = _default_branch(repo_dir, provider, project_path, project_name)
     token = _provider_token(provider)
-    auth_url = git_provider.build_auth_url(provider, project_path, project_name, token)
+    push_url = git_provider.push_url(provider, project_path, project_name)
+    auth_header = git_provider.auth_extra_header(provider, token)
 
     # 1) Fallback-коммит незакоммиченных изменений.
     try:
@@ -801,7 +851,7 @@ def git_push_and_create_pr(params: dict) -> dict:
             )
 
     # 2) Неотправленные коммиты.
-    unpushed = _unpushed_commits(repo_dir, default_branch, auth_url)
+    unpushed = _unpushed_commits(repo_dir, default_branch, push_url, auth_header)
     if not unpushed:
         activity.logger.info(
             "git_push_and_create_pr: %s — неотправленных коммитов нет, push/MR не нужны",
@@ -819,7 +869,7 @@ def git_push_and_create_pr(params: dict) -> dict:
         head_sha = rev.stdout.strip()
     commit_url = git_provider.commit_url(provider, project_path, project_name, head_sha)
 
-    if not auth_url:
+    if not token or not auth_header:
         token_key = (
             "GITHUB_TOKEN" if provider == git_provider.PROVIDER_GITHUB else "GITLAB_TOKEN"
         )
@@ -833,7 +883,7 @@ def git_push_and_create_pr(params: dict) -> dict:
         }
 
     activity.heartbeat(f"git_push_and_create_pr:{repo_dir}:push:{branch}")
-    pushed, push_err = _push_branch(repo_dir, auth_url, branch)
+    pushed, push_err = _push_branch(repo_dir, push_url, auth_header, token, branch)
     if not pushed:
         activity.logger.error(
             "git_push_and_create_pr: push в %s (%s) не удался: %s",

@@ -71,22 +71,48 @@ def test_parse_remote_unknown_provider_raises():
         git_provider.parse_remote("https://github.com/o/r.git", "bitbucket")
 
 
-# --- build_auth_url ------------------------------------------------------------
+# --- push_url / auth_extra_header / mask_token ---------------------------------
 
 
-def test_build_auth_url_github():
-    url = git_provider.build_auth_url("github", "o", "r", "tok")
-    assert url == "https://x-access-token:tok@github.com/o/r.git"
+def test_push_url_github():
+    assert git_provider.push_url("github", "o", "r") == "https://github.com/o/r.git"
 
 
-def test_build_auth_url_gitlab(monkeypatch):
+def test_push_url_gitlab(monkeypatch):
     monkeypatch.setattr(git_provider, "GITLAB_URL", "https://gitlab.example.com")
-    url = git_provider.build_auth_url("gitlab", "g/p", "p", "tok")
-    assert url == "https://oauth2:tok@gitlab.example.com/g/p.git"
+    assert git_provider.push_url("gitlab", "g/p", "p") == "https://gitlab.example.com/g/p.git"
 
 
-def test_build_auth_url_no_token():
-    assert git_provider.build_auth_url("github", "o", "r", "") is None
+def test_push_url_unknown_provider():
+    assert git_provider.push_url("bitbucket", "o", "r") is None
+
+
+def test_auth_extra_header_github():
+    import base64
+
+    expected = "AUTHORIZATION: basic " + base64.b64encode(
+        b"x-access-token:tok"
+    ).decode("ascii")
+    assert git_provider.auth_extra_header("github", "tok") == expected
+
+
+def test_auth_extra_header_no_token():
+    assert git_provider.auth_extra_header("github", "") is None
+
+
+def test_auth_extra_header_unknown_provider():
+    assert git_provider.auth_extra_header("bitbucket", "tok") is None
+
+
+def test_mask_token_removes_token_and_credentials():
+    text = "remote: https://x-access-token:SECRET@github.com/o/r.git failed"
+    out = git_provider.mask_token(text, "SECRET")
+    assert "SECRET" not in out
+    assert "<redacted>" in out
+
+
+def test_mask_token_no_token():
+    assert git_provider.mask_token("some text", "") == "some text"
 
 
 # --- commit_url ----------------------------------------------------------------
