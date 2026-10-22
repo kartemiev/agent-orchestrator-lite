@@ -164,6 +164,8 @@ Captured from the live stack at 1920×1080.
 |---|---|
 | **Streamlit Dashboard** — JSON plan input, `Auto-approve`, `Run` | **DAG execution view** — workflow status and the expanded plan |
 | ![Streamlit Dashboard](docs/assets/streamlit-dashboard.png) | ![DAG execution view](docs/assets/dag-execution-view.png) |
+| **Agent Canvas session** — a live OpenHands conversation executing a DAG step | **Temporal UI** — Event History with the workflow's activities |
+| ![Agent Canvas session](docs/assets/agent-canvas-session.png) | ![Temporal UI: Event History](docs/assets/temporal-ui.png) |
 
 **CLI diagnostics** — `agent-cli.py list` / `status` / `inspect` against the live stack:
 
@@ -174,7 +176,6 @@ Planned assets (to be added):
 | File | Description |
 |---|---|
 | `docs/assets/streamlit-approval.png` | The HITL approval gate (approve / reject signals). |
-| `docs/assets/temporal-ui.png` | Temporal UI: a running workflow with waves and step statuses. |
 | `docs/assets/pull-request.png` | The auto-created GitHub Pull Request. |
 | `docs/assets/demo.gif` | 30-second full-flow demo (plan → run → waves → PR). |
 

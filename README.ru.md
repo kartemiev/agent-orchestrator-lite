@@ -168,6 +168,8 @@ flowchart LR
 |---|---|
 | **Streamlit Dashboard** — ввод JSON-плана, `Auto-approve`, `Run` | **DAG execution view** — статус workflow и раскрытый план |
 | ![Streamlit Dashboard](docs/assets/streamlit-dashboard.png) | ![DAG execution view](docs/assets/dag-execution-view.png) |
+| **Agent Canvas session** — живая сессия OpenHands, исполняющая шаг DAG | **Temporal UI** — Event History с активностями workflow |
+| ![Agent Canvas session](docs/assets/agent-canvas-session.png) | ![Temporal UI: Event History](docs/assets/temporal-ui.png) |
 
 **CLI-диагностика** — `agent-cli.py list` / `status` / `inspect` на живом стеке:
 
@@ -178,7 +180,6 @@ flowchart LR
 | Файл | Описание |
 |---|---|
 | `docs/assets/streamlit-approval.png` | Гейт подтверждения HITL (сигналы approve / reject). |
-| `docs/assets/temporal-ui.png` | Temporal UI: запущенный workflow с волнами и статусами шагов. |
 | `docs/assets/pull-request.png` | Автоматически созданный GitHub Pull Request. |
 | `docs/assets/demo.gif` | Демо полного цикла за 30 секунд (план → запуск → волны → PR). |
 

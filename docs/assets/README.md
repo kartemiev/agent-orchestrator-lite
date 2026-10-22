@@ -12,6 +12,8 @@ All images are 1920×1080 PNGs captured from the live Docker Compose stack
 |---|---|
 | `streamlit-dashboard.png` | Streamlit UI: JSON plan field, `Auto-approve`, `Run`. |
 | `dag-execution-view.png` | Workflow monitor: Temporal status + expanded `ExecutionPlan`. |
+| `agent-canvas-session.png` | OpenHands Agent Canvas: a live conversation executing a DAG step. |
+| `temporal-ui.png` | Temporal UI: Event History of the same workflow. |
 | `cli-diagnostics.png` | `agent-cli.py list` / `status` / `inspect` output. |
 
 ## Planned
@@ -19,6 +21,5 @@ All images are 1920×1080 PNGs captured from the live Docker Compose stack
 | File | Description |
 |---|---|
 | `streamlit-approval.png` | The HITL approval gate (approve / reject signals). |
-| `temporal-ui.png` | Temporal UI: a running workflow with waves and step statuses. |
 | `pull-request.png` | The auto-created GitHub Pull Request. |
 | `demo.gif` | 30-second full-flow demo. |
