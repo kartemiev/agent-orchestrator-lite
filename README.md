@@ -2,8 +2,82 @@
 
 # agent-orchestrator-lite
 
-A lightweight public version of `agent-orchestrator`: only the core contour for
-executing a pre-built JSON plan through OpenHands under Temporal control.
+<p align="center">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
+  <a href="#"><img alt="Python 3.11" src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white"></a>
+  <a href="#"><img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.100-009688?logo=fastapi&logoColor=white"></a>
+  <a href="#"><img alt="Temporal" src="https://img.shields.io/badge/Temporal-1.25-1b1b1b?logo=temporal&logoColor=white"></a>
+  <a href="#"><img alt="Streamlit" src="https://img.shields.io/badge/Streamlit-1.30-FF4B4B?logo=streamlit&logoColor=white"></a>
+  <a href="#"><img alt="OpenHands" src="https://img.shields.io/badge/OpenHands-1.10-FF6B00"></a>
+  <a href="#"><img alt="Docker Compose" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white"></a>
+  <a href="https://github.com/kartemiev/agent-orchestrator-lite"><img alt="GitHub stars" src="https://img.shields.io/github/stars/kartemiev/agent-orchestrator-lite?style=social"></a>
+  <a href="https://github.com/kartemiev/agent-orchestrator-lite"><img alt="Last commit" src="https://img.shields.io/github/last-commit/kartemiev/agent-orchestrator-lite"></a>
+</p>
+
+A lightweight, production-ready Open-Source infrastructure for autonomous
+execution of complex features and refactoring tasks using AI agents (OpenHands)
+managed by Temporal.
+
+### Why this project?
+When delegating a large or complex feature (e.g., "build a notification service
+with tests") to a single AI agent prompt, agents often hallucinate, lose
+context, or break the existing codebase.
+
+`agent-orchestrator-lite` solves this through **DAG Orchestration**:
+- **Structured Planning:** You (or an external LLM chat like ChatGPT/Claude)
+  decompose a feature into a graph of independent steps (a JSON Sprint).
+- **Human-in-the-Loop Safety:** You review and approve the plan in a Streamlit
+  UI before a single line of code is written.
+- **Parallel Wave Execution:** The orchestrator runs independent tasks
+  concurrently in isolated workspaces using Temporal and OpenHands.
+- **Automated Delivery:** Once all tasks and tests complete successfully,
+  changes are automatically committed, pushed to GitHub, and wrapped into a
+  Pull Request.
+
+## Contents
+
+- [Lite vs Enterprise](#lite-vs-enterprise)
+- [Key Concepts & Glossary](#key-concepts--glossary)
+  - [Sprint (Execution Plan)](#sprint-execution-plan)
+  - [DAG (Directed Acyclic Graph)](#dag-directed-acyclic-graph)
+  - [Wave Execution](#wave-execution)
+  - [Human-in-the-Loop (HITL)](#human-in-the-loop-hitl)
+- [What's inside](#whats-inside)
+  - [How the components talk](#how-the-components-talk)
+- [Screenshots](#screenshots)
+- [What was removed compared to the full version](#what-was-removed-compared-to-the-full-version)
+- [Quick start](#quick-start)
+- [Production Deployment & Security](#production-deployment--security)
+- [Running a workflow](#running-a-workflow)
+  - [Via the REST API](#via-the-rest-api)
+  - [Via the UI](#via-the-ui)
+  - [Via the CLI](#via-the-cli)
+- [JSON plan format](#json-plan-format)
+- [Usage examples](#usage-examples)
+  - [Repository self-update](#repository-self-update)
+- [Environment variables](#environment-variables)
+- [Structure](#structure)
+
+## Lite vs Enterprise
+
+`agent-orchestrator-lite` is the public minimal core of the full
+`agent-orchestrator`, focused on one reliable scenario: run a pre-built JSON
+plan through OpenHands under Temporal control.
+
+| Capability | Lite (this repo) | Enterprise (full) |
+|---|---|---|
+| DAG Orchestration (Temporal) | ✅ | ✅ |
+| Parallel wave execution | ✅ | ✅ |
+| Human-in-the-Loop approval gate | ✅ | ✅ |
+| Agent engine | ✅ OpenHands | ✅ multi-engine |
+| Agents / workers | OpenHands | OpenHands + aider + AITM + dogfood + swarm |
+| LLM Planner (auto-decomposition) | ❌ (external LLM chat) | ✅ built-in |
+| Council of Elders (multi-model review) | ❌ | ✅ |
+| Canvas fast-path | ❌ | ✅ |
+| LLM providers | DeepSeek / OpenAI / Anthropic / OpenRouter | + SiliconFlow / DashScope / Resend |
+| GitHub delivery (commit → push → PR) | ✅ | ✅ |
+
+Details of what was removed: [What was removed compared to the full version](#what-was-removed-compared-to-the-full-version).
 
 ## Key Concepts & Glossary
 
@@ -86,6 +160,38 @@ human reviews the decomposition, not every generated line of code.
 - **Streamlit Dashboard** (`agent-ui`) — JSON plan input, auto-approve and
   workflow monitoring/signals.
 
+### How the components talk
+
+```mermaid
+flowchart LR
+    U["You / LLM chat<br/>(JSON Sprint)"] --> UI["Streamlit UI<br/>(HITL approval gate)"]
+    UI -->|"approve signal"| API["FastAPI Gateway<br/>POST /api/v1/plan/direct"]
+    API --> T["Temporal Server<br/>(workflow + history)"]
+    T --> W["Temporal Worker<br/>EnterpriseHITLWorkflow"]
+    W -->|"waves via asyncio.gather"| OH["OpenHands agents<br/>(isolated workspaces)"]
+    OH -->|"clone → push → PR"| G["GitHub"]
+```
+
+## Screenshots
+
+> **Note:** these are placeholders. Drop the real images into `docs/assets/`
+> and replace the paths below.
+
+| | |
+|---|---|
+| **Streamlit Dashboard** — JSON plan input, auto-approve, monitoring | **Temporal UI** — workflow waves, step statuses, signals |
+| ![Streamlit Dashboard](docs/assets/streamlit-dashboard.png) | ![Temporal UI](docs/assets/temporal-ui.png) |
+
+Planned assets (to be added):
+
+| File | Description |
+|---|---|
+| `docs/assets/streamlit-dashboard.png` | Streamlit UI: JSON plan field + `Auto-approve` checkbox + `Run`. |
+| `docs/assets/streamlit-approval.png` | The HITL approval gate (approve / reject signals). |
+| `docs/assets/temporal-ui.png` | Temporal UI: a running workflow with waves and step statuses. |
+| `docs/assets/pull-request.png` | The auto-created GitHub Pull Request. |
+| `docs/assets/demo.gif` | 30-second full-flow demo (plan → run → waves → PR). |
+
 ## What was removed compared to the full version
 
 - The `agent-aider`, `agent-aitm`, `agent-dogfood`, `agent-swarm` workers and queues.
@@ -156,6 +262,54 @@ Response: `{"status": "triggered", "workflow_id": "direct-plan-...", ...}`.
 1. Paste a ready-made JSON plan into the "Ready-made JSON plan" field.
 2. Tick `Auto-approve` (or approve the plan manually in the monitoring panel).
 3. Press "Run".
+
+### Via the CLI
+
+The repository ships a dependency-free CLI for launching and deep-diagnosing
+sprints: [`scripts/agent-cli.py`](./scripts/agent-cli.py). It runs both from the
+host and inside the orchestrator container.
+
+```bash
+# Launch a sprint (auto-approve + wait for completion)
+python scripts/agent-cli.py submit examples/self-update.json --auto-approve --wait
+
+# Brief status of waves and tasks
+python scripts/agent-cli.py status <workflow_id>
+
+# Deep inspection: DAG steps -> OpenHands sessions, container states, errors
+python scripts/agent-cli.py inspect <workflow_id>
+
+# Targeted logs (orchestrator + OpenHands)
+python scripts/agent-cli.py logs <workflow_id> [--phase <task_id>]
+
+# LLM (DeepSeek) diagnosis of a failed sprint
+python scripts/agent-cli.py diagnose <workflow_id>
+
+# List sprints (workflows) for the last 24 hours
+python scripts/agent-cli.py list --since 24h --limit 20
+```
+
+`list` queries Temporal for active and finished sprints (`RUNNING`,
+`COMPLETED`, `FAILED`, `TERMINATED`) within the requested window and prints a
+table with the columns **Workflow ID**, **Status**, **Start Time** and
+**Duration / Finished**. `--since` accepts `24h`, `1h30m`, `45m`, `2d`, `30s`
+(default `24h`); `--limit` caps the number of rows (default `20`).
+
+From the host the CLI talks to the HTTP gateway and the Docker CLI; for
+Temporal-heavy commands it re-runs itself inside the orchestrator container via
+`docker exec`. It also works directly inside the container:
+
+```bash
+docker compose exec agent-orchestrator python /app/scripts/agent-cli.py status <workflow_id>
+# or, using the container name from docker-compose.yml:
+docker exec agent-orchestrator-lite python /app/scripts/agent-cli.py status <workflow_id>
+```
+
+Run `python scripts/agent-cli.py --help` for the full list of commands and options.
+
+For the guidance given to AI agents working on this repository (how to check
+sprint status, self-diagnose failed runs and read logs before editing code or
+JSON plans), see [`AGENTS.md`](./AGENTS.md) → "CLI Diagnostics & Control Tool".
 
 ## JSON plan format
 
@@ -260,6 +414,8 @@ ui/
 docker/
   openhands-entrypoint.sh
 docker-compose.yml
+scripts/
+  agent-cli.py   CLI: submit / status / inspect / logs / diagnose / list
 examples/
   self-update.json            JSON plan "repository self-update"
   notification-service.json   JSON plan "Notification Service"

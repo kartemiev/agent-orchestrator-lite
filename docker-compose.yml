@@ -40,7 +40,7 @@ services:
     container_name: agent-temporal-server
     restart: unless-stopped
     ports:
-      - "${BIND_IP:-127.0.0.1}:7233:7233"   # gRPC API
+      - "${BIND_IP:-127.0.0.1}:${TEMPORAL_PORT:-7233}:7233"   # gRPC API
     environment:
       - DB=postgres12
       - DB_PORT=5432
@@ -67,7 +67,7 @@ services:
       - /bin/bash
       - /usr/local/bin/openhands-entrypoint.sh
     ports:
-      - "${BIND_IP:-127.0.0.1}:8000:8000"
+      - "${BIND_IP:-127.0.0.1}:${AGENT_CANVAS_PORT:-8000}:8000"
     environment:
       - WORKSPACE_BASE=/app/workspace
       - WORKSPACE_DIR=/app/workspace
@@ -107,7 +107,7 @@ services:
     container_name: agent-orchestrator-lite
     restart: unless-stopped
     ports:
-      - "${BIND_IP:-127.0.0.1}:8085:8000"
+      - "${BIND_IP:-127.0.0.1}:${ORCHESTRATOR_GATEWAY_PORT:-8085}:8000"
     environment:
       - TEMPORAL_HOST=temporal:7233
       - OPENHANDS_API_URL=http://openhands:8000
@@ -123,6 +123,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./workspace:/app/workspace
+      - ./scripts:/app/scripts:ro
     command: sh -c "umask 000; python worker.py & uvicorn main:app --host 0.0.0.0 --port 8000"
     logging:
       driver: json-file
@@ -142,7 +143,7 @@ services:
     container_name: agent-ui
     restart: unless-stopped
     ports:
-      - "${BIND_IP:-127.0.0.1}:8501:8501"
+      - "${BIND_IP:-127.0.0.1}:${STREAMLIT_PORT:-8501}:8501"
     environment:
       - TEMPORAL_HOST=temporal:7233
       - GATEWAY_URL=http://agent-orchestrator:8000

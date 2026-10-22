@@ -134,3 +134,39 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d @examples/notification-service.json
 ```
+
+---
+
+## CLI Diagnostics & Control Tool (`scripts/agent-cli.py`)
+
+> For AI agents and maintainers working **on this repository** (distinct from the
+> external LLMs that only design plans): before editing code or JSON plans, and
+> whenever a sprint fails, use the bundled CLI to inspect the live system.
+
+`scripts/agent-cli.py` runs both from the host and inside the orchestrator
+container. From the host, Temporal-heavy commands re-run themselves inside the
+container via `docker exec`; `logs` reads `docker logs` directly.
+
+| Command | Purpose |
+|---|---|
+| `python3 scripts/agent-cli.py list --since 24h --limit 20` | List sprints (workflows) for the last 24h — statuses `RUNNING` / `COMPLETED` / `FAILED` / `TERMINATED`. |
+| `python3 scripts/agent-cli.py status <workflow_id>` | Brief status of the waves and tasks of one sprint. |
+| `python3 scripts/agent-cli.py inspect <workflow_id>` | Deep inspection: DAG steps → OpenHands sessions, container states, last `AgentErrorEvent`s. |
+| `python3 scripts/agent-cli.py logs <workflow_id> [--phase <task_id>]` | Targeted orchestrator + OpenHands logs for a workflow / phase. |
+| `python3 scripts/agent-cli.py diagnose <workflow_id>` | Self-diagnose a failed sprint: collects the full error dump (Temporal traceback + OpenHands events) and asks DeepSeek for a short root-cause + fix. |
+| `python3 scripts/agent-cli.py submit <plan.json> [--auto-approve] [-w]` | Launch a sprint from a JSON plan. |
+
+**Rules for agents:**
+
+1. **Check status first.** Before changing code or JSON plans, run
+   `python3 scripts/agent-cli.py list --since 24h` (or `status <workflow_id>`)
+   to see what is already running or failing — do not blindly re-submit.
+2. **Diagnose failures, don't guess.** For a failed sprint, run
+   `python3 scripts/agent-cli.py diagnose <workflow_id>` and read the root cause
+   and suggested fix before editing.
+3. **Read logs before editing.** Run
+   `python3 scripts/agent-cli.py logs <workflow_id> [--phase <task_id>]` (and
+   `inspect <workflow_id>` for the DAG→session/container mapping) to locate the
+   exact failing step before touching files.
+4. **Never commit secrets.** The CLI reads `.env` (LLM keys, `GITHUB_TOKEN`) from
+   the environment; do not print or commit them.

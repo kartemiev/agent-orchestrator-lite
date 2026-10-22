@@ -135,3 +135,40 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
   -d @examples/notification-service.json
 ```
 
+---
+
+## Инструмент диагностики и управления CLI (`scripts/agent-cli.py`)
+
+> Для AI-агентов и мейнтейнеров, работающих **над этим репозиторием** (в отличие
+> от внешних LLM, которые только проектируют планы): перед правкой кода или
+> JSON-планов, а также при любом падении спринта используй встроенный CLI для
+> инспекции живой системы.
+
+`scripts/agent-cli.py` работает и с хоста, и внутри контейнера оркестратора.
+С хоста Temporal-команды перезапускают себя внутри контейнера через
+`docker exec`; `logs` читает `docker logs` напрямую.
+
+| Команда | Назначение |
+|---|---|
+| `python3 scripts/agent-cli.py list --since 24h --limit 20` | Список спринтов (workflow) за последние 24ч — статусы `RUNNING` / `COMPLETED` / `FAILED` / `TERMINATED`. |
+| `python3 scripts/agent-cli.py status <workflow_id>` | Краткий статус волн и задач одного спринта. |
+| `python3 scripts/agent-cli.py inspect <workflow_id>` | Глубокая инспекция: шаги DAG → сессии OpenHands, состояния контейнеров, последние `AgentErrorEvent`. |
+| `python3 scripts/agent-cli.py logs <workflow_id> [--phase <task_id>]` | Точечные логи оркестратора и OpenHands по workflow/фазе. |
+| `python3 scripts/agent-cli.py diagnose <workflow_id>` | Самодиагностика упавшего спринта: собирает полный дамп ошибки (Temporal traceback + события OpenHands) и спрашивает DeepSeek о краткой причине и фиксе. |
+| `python3 scripts/agent-cli.py submit <plan.json> [--auto-approve] [-w]` | Запуск спринта из JSON-плана. |
+
+**Правила для агентов:**
+
+1. **Сначала проверь статус.** Перед изменением кода или JSON-планов выполни
+   `python3 scripts/agent-cli.py list --since 24h` (или `status <workflow_id>`),
+   чтобы понять, что уже запущено или падает — не перезапускай вслепую.
+2. **Диагностируй падения, не угадывай.** Для упавшего спринта выполни
+   `python3 scripts/agent-cli.py diagnose <workflow_id>` и прочитай причину и
+   совет по фиксу до правок.
+3. **Читай логи перед правками.** Выполни
+   `python3 scripts/agent-cli.py logs <workflow_id> [--phase <task_id>]` (и
+   `inspect <workflow_id>` для сопоставления шагов с сессиями/контейнерами),
+   чтобы найти точный упавший шаг до изменения файлов.
+4. **Не коммить секреты.** CLI читает `.env` (ключи LLM, `GITHUB_TOKEN`) из
+   окружения; не выводи и не коммить их.
+
