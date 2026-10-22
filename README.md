@@ -104,22 +104,22 @@ curl -X POST http://127.0.0.1:8085/api/v1/plan/direct \
 
 ## Примеры использования
 
-📘 **[Сквозной туториал: разработка фичи с ChatGPT + Streamlit](BIG_EXAMPLE.md)** —
+📘 **[Сквозной туториал: разработка фичи с ChatGPT + Streamlit](docs/examples/notification-service.md)** —
 сценарий «от и до»: проектируем DAG-план через внешний LLM-чат и исполняем его
-в оркестраторе (готовый план: [`example_big_sprint.json`](./example_big_sprint.json)).
+в оркестраторе (готовый план: [`notification-service.json`](./examples/notification-service.json)).
 
 ### Самообновление репозитория
 
 Готовый пример «оркестратор обновляет сам себя» находится в
-[`example_sprint.json`](./example_sprint.json), а его подробное описание —
-в [`EXAMPLE-SPRINT.md`](./EXAMPLE-SPRINT.md).
+[`self-update.json`](./examples/self-update.json), а его подробное описание —
+в [`self-update.md`](./docs/examples/self-update.md).
 
 Короткий запуск через cURL (план берётся из файла напрямую):
 
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
   -H "Content-Type: application/json" \
-  -d @example_sprint.json
+  -d @examples/self-update.json
 ```
 
 То же самое с Auto-approve (без ручного подтверждения):
@@ -127,7 +127,7 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
   -H "Content-Type: application/json" \
-  -d "$(python3 -c 'import json; d=json.load(open("example_sprint.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
+  -d "$(python3 -c 'import json; d=json.load(open("examples/self-update.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
 ```
 
 План содержит 5 задач в 4 волнах: `git-sync` → параллельные
@@ -137,7 +137,7 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 
 См. [`.env.example`](./.env.example). Подробная настройка LLM-провайдеров
 (OpenAI / OpenRouter / DeepSeek) и контейнера OpenHands — в
-[`OPENHANDS_SETUP.md`](./OPENHANDS_SETUP.md). Ключевые:
+[`openhands-setup.md`](./docs/openhands-setup.md). Ключевые:
 
 | Переменная | Описание | По умолчанию |
 |---|---|---|
@@ -162,9 +162,16 @@ ui/
 docker/
   openhands-entrypoint.sh
 docker-compose.yml
-AGENTS.md                    Спецификация JSON-планов для LLM-архитектора
-BIG_EXAMPLE.md               Сквозной туториал (ChatGPT → DAG → запуск)
-example_big_sprint.json      JSON-план «Notification Service»
-EXAMPLE-SPRINT.md            Описание примера самообновления
-example_sprint.json          JSON-план самообновления репозитория
+examples/
+  self-update.json            JSON-план «самообновление репозитория»
+  notification-service.json   JSON-план «Notification Service»
+docs/
+  openhands-setup.md          Настройка OpenHands и LLM-провайдеров
+  examples/
+    self-update.md            Описание примера самообновления
+    notification-service.md   Сквозной туториал (ChatGPT → DAG → запуск)
+  blueprints/
+    tree-refactoring-blueprint.md  Blueprint рефакторинга дерева
+AGENTS.md                     Спецификация JSON-планов для LLM-архитектора
+LICENSE                       MIT
 ```

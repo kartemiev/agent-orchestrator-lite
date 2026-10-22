@@ -1,7 +1,7 @@
 # Пример спринта: самообновление репозитория
 
 В этом примере оркестратор `agent-orchestrator-lite` обновляет **свой собственный
-код**. Готовый JSON-план лежит в файле [`example_sprint.json`](./example_sprint.json) —
+код**. Готовый JSON-план лежит в файле [`self-update.json`](../../examples/self-update.json) —
 его можно вставить в Streamlit UI или отправить напрямую на `POST /api/v1/plan/direct`.
 
 ## Концепция
@@ -90,7 +90,7 @@ Wave 4  (Delivery)          task_3_deliver
 ### Вариант 1 — Streamlit UI
 
 1. Открой `http://localhost:8501`.
-2. Открой файл [`example_sprint.json`](./example_sprint.json) и скопируй его
+2. Открой файл [`self-update.json`](../../examples/self-update.json) и скопируй его
    содержимое целиком.
 3. Вставь JSON в поле «**Готовый JSON-план**».
 4. Отметь чекбокс «**⚡ Auto-approve**» — план утвердится автоматически, и
@@ -105,7 +105,7 @@ Wave 4  (Delivery)          task_3_deliver
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
   -H "Content-Type: application/json" \
-  -d @example_sprint.json
+  -d @examples/self-update.json
 ```
 
 Ожидаемый ответ:
@@ -125,7 +125,7 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
   -H "Content-Type: application/json" \
-  -d "$(python3 -c 'import json; d=json.load(open("example_sprint.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
+  -d "$(python3 -c 'import json; d=json.load(open("examples/self-update.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
 ```
 
 Либо вручную обернуть план в ключ `raw_json`:
@@ -133,7 +133,7 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
   -H "Content-Type: application/json" \
-  -d '{"raw_json": "<содержимое example_sprint.json одной строкой>", "auto_approve": true}'
+  -d '{"raw_json": "<содержимое examples/self-update.json одной строкой>", "auto_approve": true}'
 ```
 
 После запуска за прогрессом можно следить в Temporal UI (`http://localhost:8233`)

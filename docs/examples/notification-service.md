@@ -5,7 +5,7 @@
 через OpenHands + Temporal.
 
 Готовый JSON-план из этого сценария лежит в файле
-[`example_big_sprint.json`](./example_big_sprint.json) — его можно запустить
+[`notification-service.json`](../../examples/notification-service.json) — его можно запустить
 напрямую.
 
 ---
@@ -33,8 +33,8 @@
 | `AGENTS.md` | Правила построения DAG-графов для оркестратора (волны, `depends_on`, изоляция workspaces, ограничения OpenHands). |
 
 > В `agent-orchestrator-lite` правила построения DAG-графов описаны в
-> [`README.md`](./README.md) → раздел «Формат JSON-плана» и в
-> [`EXAMPLE-SPRINT.md`](./EXAMPLE-SPRINT.md) (в полной версии проекта они живут
+> [`README.md`](../../README.md) → раздел «Формат JSON-плана» и в
+> [`self-update.md`](self-update.md) (в полной версии проекта они живут
 > в `AGENTS.md`). Именно их нужно приложить к запросу, чтобы LLM сгенерировал
 > план в правильном формате.
 
@@ -77,7 +77,7 @@
 ## Шаг 3. Ответ ChatGPT — готовый JSON-план
 
 Реалистичный ответ модели (тот же JSON, что и в
-[`example_big_sprint.json`](./example_big_sprint.json)):
+[`notification-service.json`](../../examples/notification-service.json)):
 
 ```json
 {
@@ -161,7 +161,7 @@ Wave 4  (Tests+Delivery)   task_3_tests_and_deliver
 
 1. Открой Streamlit Dashboard: <http://localhost:8501>.
 2. Вставь полученный из ChatGPT JSON в поле «**Готовый JSON-план**»
-   (или скопируй содержимое [`example_big_sprint.json`](./example_big_sprint.json)).
+   (или скопируй содержимое [`notification-service.json`](../../examples/notification-service.json)).
 3. Отметь чекбокс «**⚡ Auto-approve**», чтобы пропустить ручное подтверждение
    (либо оставь выключенным — тогда план сначала нужно будет утвердить вручную
    в панели мониторинга).
@@ -176,7 +176,7 @@ Wave 4  (Tests+Delivery)   task_3_tests_and_deliver
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
   -H "Content-Type: application/json" \
-  -d @example_big_sprint.json
+  -d @examples/notification-service.json
 ```
 
 Сразу без ручного подтверждения:
@@ -184,7 +184,7 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
   -H "Content-Type: application/json" \
-  -d "$(python3 -c 'import json; d=json.load(open("example_big_sprint.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
+  -d "$(python3 -c 'import json; d=json.load(open("examples/notification-service.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
 ```
 
 Прогресс — в Temporal UI (<http://localhost:8233>) по `workflow_id` из ответа

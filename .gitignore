@@ -16,6 +16,8 @@ __pycache__/
 venv/
 ENV/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Docker и логи
 *.log
@@ -32,8 +34,13 @@ ENV/
 coverage.xml
 htmlcov/
 
+# Сборки Python
+dist/
+build/
+*.egg-info/
+
 # Рабочее пространство OpenHands (вложенные git-репозитории)
-workspace/
+workspace/*
 !workspace/.gitkeep
 
 # Binary packages & archives

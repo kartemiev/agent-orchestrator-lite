@@ -130,6 +130,6 @@ depends_on и разбивкой на параллельные волны.
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
   -H "Content-Type: application/json" \
-  -d @example_big_sprint.json
+  -d @examples/notification-service.json
 ```
 
