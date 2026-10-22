@@ -184,19 +184,21 @@ flowchart LR
 
 ## Скриншоты
 
-> **Примечание:** это плейсхолдеры. Положите реальные изображения в
-> `docs/assets/` и замените пути ниже.
+Сняты с живого стека в разрешении 1920×1080.
 
 | | |
 |---|---|
-| **Streamlit Dashboard** — ввод JSON-плана, auto-approve, мониторинг | **Temporal UI** — волны workflow, статусы шагов, сигналы |
-| ![Streamlit Dashboard](docs/assets/streamlit-dashboard.png) | ![Temporal UI](docs/assets/temporal-ui.png) |
+| **Streamlit Dashboard** — ввод JSON-плана, `Auto-approve`, `Run` | **DAG execution view** — статус workflow и раскрытый план |
+| ![Streamlit Dashboard](docs/assets/streamlit-dashboard.png) | ![DAG execution view](docs/assets/dag-execution-view.png) |
+
+**CLI-диагностика** — `agent-cli.py list` / `status` / `inspect` на живом стеке:
+
+![CLI diagnostics](docs/assets/cli-diagnostics.png)
 
 Планируемые ассеты (будут добавлены):
 
 | Файл | Описание |
 |---|---|
-| `docs/assets/streamlit-dashboard.png` | Streamlit UI: поле JSON-плана + чекбокс `Auto-approve` + `Run`. |
 | `docs/assets/streamlit-approval.png` | Гейт подтверждения HITL (сигналы approve / reject). |
 | `docs/assets/temporal-ui.png` | Temporal UI: запущенный workflow с волнами и статусами шагов. |
 | `docs/assets/pull-request.png` | Автоматически созданный GitHub Pull Request. |
