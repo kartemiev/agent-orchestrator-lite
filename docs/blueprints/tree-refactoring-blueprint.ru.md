@@ -30,7 +30,7 @@ agent-orchestrator-lite/
 │   ├── main.py              # FastAPI Gateway
 │   ├── requirements.txt
 │   ├── worker.py            # Temporal Worker
-│   └── workflows.py         # EnterpriseHITLWorkflow (волновой DAG)
+│   └── workflows.py         # HITLWorkflow (волновой DAG)
 ├── ui/
 │   ├── Dockerfile
 │   ├── app.py               # Streamlit Dashboard

@@ -37,7 +37,7 @@
    их в один уровень.
 
 4. **Исполнитель `engine` — строго `"openhands"`.**
-   В Lite-версии единственный движок — OpenHands (terminal + file_editor).
+   Единственный движок — OpenHands (terminal + file_editor).
    Каждый узел должен содержать `"engine": "openhands"`.
 
 5. **Финальная волна — проверка и/или доставка.**

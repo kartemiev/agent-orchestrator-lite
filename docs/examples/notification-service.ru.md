@@ -35,10 +35,10 @@
 | `AGENTS.md` | Правила построения DAG-графов для оркестратора (волны, `depends_on`, изоляция workspaces, ограничения OpenHands). |
 
 > В `agent-orchestrator-lite` правила построения DAG-графов описаны в
-> [`README.md`](../../README.ru.md) → раздел «Формат JSON-плана» и в
-> [`self-update.md`](self-update.ru.md) (в полной версии проекта они живут
-> в `AGENTS.md`). Именно их нужно приложить к запросу, чтобы LLM сгенерировал
-> план в правильном формате.
+> [`README.md`](../../README.ru.md) → раздел «Формат JSON-плана», в
+> [`self-update.md`](self-update.ru.md) и в [`AGENTS.md`](../../AGENTS.ru.md).
+> Именно их нужно приложить к запросу, чтобы LLM сгенерировал план в правильном
+> формате.
 
 ---
 

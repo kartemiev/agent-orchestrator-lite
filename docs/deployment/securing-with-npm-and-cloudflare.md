@@ -470,11 +470,10 @@ rejecting anything that does not match. Keep NPM Basic Auth on that host as a
 second lock, or better, restrict the host to the sender's published IP ranges.
 
 > ⚠️ **Scope check.** `agent-orchestrator-lite` exposes only `GET /health` and
-> `POST /api/v1/plan/direct`; the GitHub webhook was removed from the Lite
-> version. Create the `/webhook/*` bypass **only** if you run the full version or
-> your own receiver — an unused bypass rule is an unnecessary hole. Never bypass
-> more than the exact path prefix you need, and never bypass `/` on the UI host:
-> that host controls agent execution.
+> `POST /api/v1/plan/direct`; there is no GitHub webhook endpoint. Create the
+> `/webhook/*` bypass **only** if you add your own receiver — an unused bypass
+> rule is an unnecessary hole. Never bypass more than the exact path prefix you
+> need, and never bypass `/` on the UI host: that host controls agent execution.
 
 ### 8.4 Order of checks
 

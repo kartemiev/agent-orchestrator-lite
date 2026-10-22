@@ -37,7 +37,7 @@ where parallelism is defined solely by the `depends_on` field.
    group them into a single level.
 
 4. **The `engine` executor is strictly `"openhands"`.**
-   In the Lite version the only engine is OpenHands (terminal + file_editor).
+   The only engine is OpenHands (terminal + file_editor).
    Every node must contain `"engine": "openhands"`.
 
 5. **The final wave — verification and/or delivery.**

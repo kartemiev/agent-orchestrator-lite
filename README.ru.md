@@ -14,8 +14,9 @@
   <a href="https://github.com/kartemiev/agent-orchestrator-lite"><img alt="Last commit" src="https://img.shields.io/github/last-commit/kartemiev/agent-orchestrator-lite"></a>
 </p>
 
-Надёжная Open-Source инфраструктура для автономного исполнения сложных фич и
-рефакторинга AI-агентами (OpenHands) под управлением Temporal.
+`agent-orchestrator-lite` — готовая к продакшену Open-Source инфраструктура для
+автономного исполнения сложных фич и рефакторинга AI-агентами (OpenHands) под
+управлением Temporal.
 
 ### Зачем нужен этот проект?
 При поручении AI-агенту крупной задачи (например, «напиши сервис уведомлений
@@ -36,7 +37,6 @@
 
 ## Содержание
 
-- [Lite vs Enterprise](#lite-vs-enterprise)
 - [Концепции и терминология](#концепции-и-терминология)
   - [Спринт (Sprint / Execution Plan)](#спринт-sprint--execution-plan)
   - [DAG (Directed Acyclic Graph)](#dag-directed-acyclic-graph)
@@ -45,7 +45,6 @@
 - [Что внутри](#что-внутри)
   - [Как компоненты взаимодействуют](#как-компоненты-взаимодействуют)
 - [Скриншоты](#скриншоты)
-- [Что удалено относительно полной версии](#что-удалено-относительно-полной-версии)
 - [Быстрый старт](#быстрый-старт)
 - [Продакшен и Безопасность](#продакшен-и-безопасность)
 - [Запуск workflow](#запуск-workflow)
@@ -58,27 +57,6 @@
 - [Переменные окружения](#переменные-окружения)
   - [Лимиты ресурсов и рекомендации по памяти](#лимиты-ресурсов-и-рекомендации-по-памяти)
 - [Структура](#структура)
-
-## Lite vs Enterprise
-
-`agent-orchestrator-lite` — публичный минимальный контур полного
-`agent-orchestrator`, сфокусированный на одном надёжном сценарии: исполнение
-готового JSON-плана через OpenHands под управлением Temporal.
-
-| Возможность | Lite (этот репозиторий) | Enterprise (полная версия) |
-|---|---|---|
-| DAG-оркестрация (Temporal) | ✅ | ✅ |
-| Параллельное волновое исполнение | ✅ | ✅ |
-| Гейт подтверждения Human-in-the-Loop | ✅ | ✅ |
-| Движок агента | ✅ OpenHands | ✅ multi-engine |
-| Агенты / воркеры | OpenHands | OpenHands + aider + AITM + dogfood + swarm |
-| LLM Planner (автодекомпозиция) | ❌ (внешний LLM-чат) | ✅ встроенный |
-| Council of Elders (мультимодельное ревью) | ❌ | ✅ |
-| Canvas fast-path | ❌ | ✅ |
-| LLM-провайдеры | DeepSeek / OpenAI / Anthropic / OpenRouter | + SiliconFlow / DashScope / Resend |
-| Доставка в GitHub (commit → push → PR) | ✅ | ✅ |
-
-Подробнее об удалённом: [Что удалено относительно полной версии](#что-удалено-относительно-полной-версии).
 
 ## Концепции и терминология
 
@@ -159,8 +137,8 @@ git-sync ──┬──→ backend/docs ──┐
 - **FastAPI Gateway** (`orchestrator/main.py`) — `GET /health` и `POST /api/v1/plan/direct`.
 - **Temporal Server + Postgres** (`temporal`, `temporal-db`) — оркестрация и история workflow.
 - **OpenHands** (`openhands`) — агент, исполняющий фазы DAG-плана (terminal + file_editor).
-- **Единый воркер** (`orchestrator/worker.py`) — регистрирует только
-  `EnterpriseHITLWorkflow` и базовые активности.
+- **Единый воркер** (`orchestrator/worker.py`) — регистрирует `HITLWorkflow`
+  и базовые активности.
 - **Streamlit Dashboard** (`agent-ui`) — ввод JSON-плана, auto-approve и
   мониторинг/сигналы workflow.
 
@@ -171,7 +149,7 @@ flowchart LR
     U["Вы / LLM-чат<br/>(JSON Спринт)"] --> UI["Streamlit UI<br/>(гейт подтверждения HITL)"]
     UI -->|"сигнал approve"| API["FastAPI Gateway<br/>POST /api/v1/plan/direct"]
     API --> T["Temporal Server<br/>(workflow + история)"]
-    T --> W["Temporal Worker<br/>EnterpriseHITLWorkflow"]
+    T --> W["Temporal Worker<br/>HITLWorkflow"]
     W -->|"волны через asyncio.gather"| OH["Агенты OpenHands<br/>(изолированные workspace)"]
     OH -->|"clone → push → PR"| G["GitHub"]
 ```
@@ -203,16 +181,6 @@ flowchart LR
 | `docs/assets/temporal-ui.png` | Temporal UI: запущенный workflow с волнами и статусами шагов. |
 | `docs/assets/pull-request.png` | Автоматически созданный GitHub Pull Request. |
 | `docs/assets/demo.gif` | Демо полного цикла за 30 секунд (план → запуск → волны → PR). |
-
-## Что удалено относительно полной версии
-
-- Воркеры и очереди `agent-aider`, `agent-aitm`, `agent-dogfood`, `agent-swarm`.
-- Совет Старейшин (Council), `council_panel.json`,
-  `scripts/multi_model_review_dispatcher.py` и все зависимости от них.
-- LLM Planner (автодекомпозиция через DeepSeek) и интеграции
-  OpenRouter / SiliconFlow / DashScope / Resend.
-- Canvas fast-path (`canvas_claude_streamer.py`, `canvas_bridge.py`).
-- Папка `scripts/` и лишние спецификации/blueprints.
 
 ## Быстрый старт
 
@@ -355,11 +323,11 @@ JSON-планов), — в [`AGENTS.md`](./AGENTS.ru.md) → «Инструме�
   только через `depends_on`: шаги с одинаковым набором зависимостей исполняются
   одной волной через `asyncio.gather`.
 - `prompt` — инструкция для агента OpenHands.
-- `engine` — в Lite-версии единственный движок `openhands` (все шаги, включая
-  git-sync, выполняются OpenHands).
+- `engine` — единственный движок `openhands` (все шаги, включая git-sync,
+  выполняются OpenHands).
 - `model` — опциональная per-node LLM-модель (иначе `LLM_MODEL` из `.env`). Имя может быть базовым (`deepseek-v4-pro`, `gpt-4o`) или с LiteLLM-префиксом (`openrouter/...`, `deepseek/...`).
 
-Полная спецификация формата и правила построения DAG для LLM-архитектора —
+Спецификация формата и правила построения DAG для LLM-архитектора —
 в [`AGENTS.md`](./AGENTS.ru.md) (системный промпт для ChatGPT / Claude / DeepSeek).
 
 Волновой DAG-исполнитель исполняет шаги строго по переданному плану: волна
@@ -461,7 +429,7 @@ docker inspect openhands --format '{{.HostConfig.Memory}}'
 orchestrator/
   main.py        FastAPI Gateway
   worker.py      Temporal Worker
-  workflows.py   EnterpriseHITLWorkflow (волновой DAG-исполнитель)
+  workflows.py   HITLWorkflow (волновой DAG-исполнитель)
   activities.py  execute_openhands_phase / prepare_workspace /
                  cleanup_workspace / git_push_and_create_pr
 ui/

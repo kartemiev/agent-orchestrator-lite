@@ -35,10 +35,10 @@ The developer takes four files from their project and from the orchestrator:
 | `AGENTS.md` | Rules for building DAG graphs for the orchestrator (waves, `depends_on`, workspace isolation, OpenHands constraints). |
 
 > In `agent-orchestrator-lite` the DAG-building rules are described in
-> [`README.md`](../../README.md) → the "JSON plan format" section and in
-> [`self-update.md`](self-update.md) (in the full version of the project they live
-> in `AGENTS.md`). These are exactly the rules to attach to the request so that
-> the LLM generates a plan in the right format.
+> [`README.md`](../../README.md) → the "JSON plan format" section, in
+> [`self-update.md`](self-update.md) and in [`AGENTS.md`](../../AGENTS.md).
+> These are exactly the rules to attach to the request so that the LLM generates
+> a plan in the right format.
 
 ---
 

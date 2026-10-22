@@ -14,9 +14,9 @@
   <a href="https://github.com/kartemiev/agent-orchestrator-lite"><img alt="Last commit" src="https://img.shields.io/github/last-commit/kartemiev/agent-orchestrator-lite"></a>
 </p>
 
-A lightweight, production-ready Open-Source infrastructure for autonomous
-execution of complex features and refactoring tasks using AI agents (OpenHands)
-managed by Temporal.
+`agent-orchestrator-lite` is a production-ready Open-Source infrastructure for
+autonomous execution of complex features and refactoring tasks using AI agents
+(OpenHands) managed by Temporal.
 
 ### Why this project?
 When delegating a large or complex feature (e.g., "build a notification service
@@ -36,7 +36,6 @@ context, or break the existing codebase.
 
 ## Contents
 
-- [Lite vs Enterprise](#lite-vs-enterprise)
 - [Key Concepts & Glossary](#key-concepts--glossary)
   - [Sprint (Execution Plan)](#sprint-execution-plan)
   - [DAG (Directed Acyclic Graph)](#dag-directed-acyclic-graph)
@@ -45,7 +44,6 @@ context, or break the existing codebase.
 - [What's inside](#whats-inside)
   - [How the components talk](#how-the-components-talk)
 - [Screenshots](#screenshots)
-- [What was removed compared to the full version](#what-was-removed-compared-to-the-full-version)
 - [Quick start](#quick-start)
 - [Production Deployment & Security](#production-deployment--security)
 - [Running a workflow](#running-a-workflow)
@@ -58,27 +56,6 @@ context, or break the existing codebase.
 - [Environment variables](#environment-variables)
   - [Resource Limits & Memory Recommendations](#resource-limits--memory-recommendations)
 - [Structure](#structure)
-
-## Lite vs Enterprise
-
-`agent-orchestrator-lite` is the public minimal core of the full
-`agent-orchestrator`, focused on one reliable scenario: run a pre-built JSON
-plan through OpenHands under Temporal control.
-
-| Capability | Lite (this repo) | Enterprise (full) |
-|---|---|---|
-| DAG Orchestration (Temporal) | ✅ | ✅ |
-| Parallel wave execution | ✅ | ✅ |
-| Human-in-the-Loop approval gate | ✅ | ✅ |
-| Agent engine | ✅ OpenHands | ✅ multi-engine |
-| Agents / workers | OpenHands | OpenHands + aider + AITM + dogfood + swarm |
-| LLM Planner (auto-decomposition) | ❌ (external LLM chat) | ✅ built-in |
-| Council of Elders (multi-model review) | ❌ | ✅ |
-| Canvas fast-path | ❌ | ✅ |
-| LLM providers | DeepSeek / OpenAI / Anthropic / OpenRouter | + SiliconFlow / DashScope / Resend |
-| GitHub delivery (commit → push → PR) | ✅ | ✅ |
-
-Details of what was removed: [What was removed compared to the full version](#what-was-removed-compared-to-the-full-version).
 
 ## Key Concepts & Glossary
 
@@ -156,8 +133,8 @@ human reviews the decomposition, not every generated line of code.
 - **FastAPI Gateway** (`orchestrator/main.py`) — `GET /health` and `POST /api/v1/plan/direct`.
 - **Temporal Server + Postgres** (`temporal`, `temporal-db`) — orchestration and workflow history.
 - **OpenHands** (`openhands`) — the agent that executes the phases of a DAG plan (terminal + file_editor).
-- **Single worker** (`orchestrator/worker.py`) — registers only
-  `EnterpriseHITLWorkflow` and the base activities.
+- **Single worker** (`orchestrator/worker.py`) — registers `HITLWorkflow`
+  and the base activities.
 - **Streamlit Dashboard** (`agent-ui`) — JSON plan input, auto-approve and
   workflow monitoring/signals.
 
@@ -168,7 +145,7 @@ flowchart LR
     U["You / LLM chat<br/>(JSON Sprint)"] --> UI["Streamlit UI<br/>(HITL approval gate)"]
     UI -->|"approve signal"| API["FastAPI Gateway<br/>POST /api/v1/plan/direct"]
     API --> T["Temporal Server<br/>(workflow + history)"]
-    T --> W["Temporal Worker<br/>EnterpriseHITLWorkflow"]
+    T --> W["Temporal Worker<br/>HITLWorkflow"]
     W -->|"waves via asyncio.gather"| OH["OpenHands agents<br/>(isolated workspaces)"]
     OH -->|"clone → push → PR"| G["GitHub"]
 ```
@@ -200,16 +177,6 @@ Planned assets (to be added):
 | `docs/assets/temporal-ui.png` | Temporal UI: a running workflow with waves and step statuses. |
 | `docs/assets/pull-request.png` | The auto-created GitHub Pull Request. |
 | `docs/assets/demo.gif` | 30-second full-flow demo (plan → run → waves → PR). |
-
-## What was removed compared to the full version
-
-- The `agent-aider`, `agent-aitm`, `agent-dogfood`, `agent-swarm` workers and queues.
-- The Council of Elders (Council), `council_panel.json`,
-  `scripts/multi_model_review_dispatcher.py` and all their dependencies.
-- The LLM Planner (auto-decomposition via DeepSeek) and the
-  OpenRouter / SiliconFlow / DashScope / Resend integrations.
-- The Canvas fast-path (`canvas_claude_streamer.py`, `canvas_bridge.py`).
-- The `scripts/` folder and the extra specifications/blueprints.
 
 ## Quick start
 
@@ -352,11 +319,11 @@ JSON plans), see [`AGENTS.md`](./AGENTS.md) → "CLI Diagnostics & Control Tool"
   solely by `depends_on`: steps with the same set of dependencies are executed
   in one wave via `asyncio.gather`.
 - `prompt` — instruction for the OpenHands agent.
-- `engine` — in the Lite version the only engine is `openhands` (all steps,
-  including git-sync, are executed by OpenHands).
+- `engine` — the only engine is `openhands` (all steps, including git-sync,
+  are executed by OpenHands).
 - `model` — optional per-node LLM model (otherwise `LLM_MODEL` from `.env`). The name can be a base name (`deepseek-v4-pro`, `gpt-4o`) or carry a LiteLLM prefix (`openrouter/...`, `deepseek/...`).
 
-The full format specification and the DAG-building rules for an LLM architect
+The complete format specification and the DAG-building rules for an LLM architect
 live in [`AGENTS.md`](./AGENTS.md) (a system prompt for ChatGPT / Claude / DeepSeek).
 
 The wave-based DAG executor runs the steps strictly according to the submitted
@@ -458,7 +425,7 @@ docker inspect openhands --format '{{.HostConfig.Memory}}'
 orchestrator/
   main.py        FastAPI Gateway
   worker.py      Temporal Worker
-  workflows.py   EnterpriseHITLWorkflow (wave-based DAG executor)
+  workflows.py   HITLWorkflow (wave-based DAG executor)
   activities.py  execute_openhands_phase / prepare_workspace /
                  cleanup_workspace / git_push_and_create_pr
 ui/
