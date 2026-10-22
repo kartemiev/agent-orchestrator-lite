@@ -56,6 +56,7 @@ context, or break the existing codebase.
 - [Usage examples](#usage-examples)
   - [Repository self-update](#repository-self-update)
 - [Environment variables](#environment-variables)
+  - [Resource Limits & Memory Recommendations](#resource-limits--memory-recommendations)
 - [Structure](#structure)
 
 ## Lite vs Enterprise
@@ -409,8 +410,45 @@ See [`.env.example`](./.env.example). Detailed configuration of LLM providers
 | `STREAMLIT_PORT` | Host port for the Streamlit UI | `8501` |
 | `AGENT_CANVAS_PORT` | Host port for OpenHands / agent-canvas | `8000` |
 | `TEMPORAL_PORT` | Host port for the Temporal gRPC frontend | `7233` |
+| `ORCHESTRATOR_MEM_LIMIT` | Container RAM limit for `agent-orchestrator` (cgroup) | `2g` |
+| `OPENHANDS_MEM_LIMIT` | Container RAM limit for `openhands` (cgroup) | `4g` |
 | `CLEANUP_WORKSPACE` | Remove the workspace after a workflow | `true` |
 | `WAVE_MAX_CONCURRENCY` | DAG wave width | `4` |
+
+### Resource Limits & Memory Recommendations
+
+The stack caps container RAM with cgroup limits defined in `docker-compose.yml`:
+
+| Variable | Applies to | Default |
+|---|---|---|
+| `ORCHESTRATOR_MEM_LIMIT` | `agent-orchestrator` (FastAPI Gateway + Temporal Worker) | `2g` |
+| `OPENHANDS_MEM_LIMIT` | `openhands` (agent execution container) | `4g` |
+
+`memswap_limit` is set equal to `mem_limit`, so containers cannot spill into
+swap: under memory pressure they receive a predictable OOM-kill instead of
+stalling the host.
+
+`OPENHANDS_MEM_LIMIT=4g` is a good baseline for small tasks, Python scripts,
+and `pytest` runs.
+
+> **Important for developers:** when debugging and building Kotlin/Gradle or
+> C++ projects, raise `OPENHANDS_MEM_LIMIT` in `.env` to at least `8g`–`12g`
+> (or higher on a larger host). The Gradle Daemon together with the Kotlin
+> compiler and native toolchains easily exceeds 4 GB, and an under-provisioned
+> limit shows up as a Gradle Daemon **Out-Of-Memory (OOM)** crash in the middle
+> of a build.
+
+```bash
+# .env — build-heavy workloads
+OPENHANDS_MEM_LIMIT=12g
+```
+
+Recreate the container so the new cgroup limit takes effect:
+
+```bash
+docker compose up -d openhands
+docker inspect openhands --format '{{.HostConfig.Memory}}'
+```
 
 ## Structure
 

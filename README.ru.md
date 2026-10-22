@@ -56,6 +56,7 @@
 - [Примеры использования](#примеры-использования)
   - [Самообновление репозитория](#самообновление-репозитория)
 - [Переменные окружения](#переменные-окружения)
+  - [Лимиты ресурсов и рекомендации по памяти](#лимиты-ресурсов-и-рекомендации-по-памяти)
 - [Структура](#структура)
 
 ## Lite vs Enterprise
@@ -412,8 +413,45 @@ curl -X POST http://localhost:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/dir
 | `STREAMLIT_PORT` | Хост-порт Streamlit UI | `8501` |
 | `AGENT_CANVAS_PORT` | Хост-порт OpenHands / agent-canvas | `8000` |
 | `TEMPORAL_PORT` | Хост-порт gRPC-фронтенда Temporal | `7233` |
+| `ORCHESTRATOR_MEM_LIMIT` | Лимит RAM контейнера `agent-orchestrator` (cgroup) | `2g` |
+| `OPENHANDS_MEM_LIMIT` | Лимит RAM контейнера `openhands` (cgroup) | `4g` |
 | `CLEANUP_WORKSPACE` | Удалять workspace после workflow | `true` |
 | `WAVE_MAX_CONCURRENCY` | Ширина волны DAG | `4` |
+
+### Лимиты ресурсов и рекомендации по памяти
+
+Стек ограничивает RAM контейнеров cgroup-лимитами, заданными в
+`docker-compose.yml`:
+
+| Переменная | Применяется к | По умолчанию |
+|---|---|---|
+| `ORCHESTRATOR_MEM_LIMIT` | `agent-orchestrator` (FastAPI Gateway + Temporal Worker) | `2g` |
+| `OPENHANDS_MEM_LIMIT` | `openhands` (контейнер исполнения агента) | `4g` |
+
+`memswap_limit` выставляется равным `mem_limit`, поэтому контейнеры не могут
+уйти в swap: под давлением памяти они получают предсказуемый OOM-kill вместо
+зависания хоста.
+
+`OPENHANDS_MEM_LIMIT=4g` — хороший базовый лимит для небольших задач,
+Python-скриптов и прогона `pytest`.
+
+> **Важно для разработчиков:** при отладке и сборке Kotlin/Gradle или C++
+> проектов увеличьте `OPENHANDS_MEM_LIMIT` в `.env` хотя бы до `8g`–`12g`
+> (или выше, если позволяет хост). Gradle Daemon вместе с компилятором Kotlin
+> и нативными тулчейнами легко превышает 4 ГБ, а заниженный лимит проявляется
+> падением Gradle Daemon по **Out-Of-Memory (OOM)** прямо во время сборки.
+
+```bash
+# .env — нагрузки со сборкой
+OPENHANDS_MEM_LIMIT=12g
+```
+
+Пересоздайте контейнер, чтобы новый cgroup-лимит применился:
+
+```bash
+docker compose up -d openhands
+docker inspect openhands --format '{{.HostConfig.Memory}}'
+```
 
 ## Структура
 
