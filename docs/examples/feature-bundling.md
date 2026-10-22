@@ -1,4 +1,4 @@
- English | [Русский](advanced-use-cases.ru.md)
+ English | [Русский](feature-bundling.ru.md)
 
 # Advanced use case: Feature & Bug Bundling into a DAG sprint
 

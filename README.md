@@ -375,7 +375,7 @@ into one release DAG sprint. The ready-made plans live in
 [`feature-bundle.json`](./examples/feature-bundle.json) (Russian prompts) and
 [`feature-bundle-en.json`](./examples/feature-bundle-en.json) (English prompts);
 the detailed walkthrough is in
-[`advanced-use-cases.md`](./docs/examples/advanced-use-cases.md).
+[`feature-bundling.md`](./docs/examples/feature-bundling.md).
 
 The bundle shape — `git-sync` → parallel `bugfix_auth` + `add_rate_limiter` →
 `refactor_user_service` → `run_e2e_tests` → `deliver`:
@@ -472,8 +472,8 @@ docs/
     self-update.ru.md         Same in Russian
     notification-service.md   End-to-end tutorial (ChatGPT → DAG → run)
     notification-service.ru.md  Same in Russian
-    advanced-use-cases.md     Feature & Bug Bundling walkthrough
-    advanced-use-cases.ru.md  Same in Russian
+    feature-bundling.md       Feature & Bug Bundling walkthrough
+    feature-bundling.ru.md    Same in Russian
   blueprints/
     tree-refactoring-blueprint.md     Tree refactoring blueprint
     tree-refactoring-blueprint.ru.md  Same in Russian

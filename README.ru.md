@@ -376,7 +376,7 @@ curl -X POST http://localhost:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/dir
 [`feature-bundle.json`](./examples/feature-bundle.json) (промпты на русском) и
 [`feature-bundle-en.json`](./examples/feature-bundle-en.json) (промпты на
 английском); подробное описание — в
-[`advanced-use-cases.ru.md`](./docs/examples/advanced-use-cases.ru.md).
+[`feature-bundling.ru.md`](./docs/examples/feature-bundling.ru.md).
 
 Форма бандла — `git-sync` → параллельные `bugfix_auth` + `add_rate_limiter` →
 `refactor_user_service` → `run_e2e_tests` → `deliver`:
@@ -473,8 +473,8 @@ docs/
     self-update.ru.md         То же на русском
     notification-service.md   Сквозной туториал (ChatGPT → DAG → запуск)
     notification-service.ru.md  То же на русском
-    advanced-use-cases.md     Разбор Feature & Bug Bundling
-    advanced-use-cases.ru.md  То же на русском
+    feature-bundling.md       Разбор Feature & Bug Bundling
+    feature-bundling.ru.md    То же на русском
   blueprints/
     tree-refactoring-blueprint.md     Blueprint рефакторинга дерева
     tree-refactoring-blueprint.ru.md  То же на русском

@@ -1,4 +1,4 @@
- [English](advanced-use-cases.md) | Русский
+ [English](feature-bundling.md) | Русский
 
 # Продвинутый сценарий: Feature & Bug Bundling в DAG-спринт
 
