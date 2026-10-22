@@ -1,6 +1,6 @@
 """Temporal Worker (Lite-версия).
 
-Регистрирует ТОЛЬКО EnterpriseHITLWorkflow и базовые активности:
+Регистрирует ТОЛЬКО HITLWorkflow и базовые активности:
   - execute_openhands_phase
   - prepare_workspace
   - cleanup_workspace
@@ -23,7 +23,7 @@ from activities import (
     git_push_and_create_pr,
     prepare_workspace,
 )
-from workflows import EnterpriseHITLWorkflow
+from workflows import HITLWorkflow
 
 TEMPORAL_HOST = os.getenv("TEMPORAL_HOST", "temporal:7233")
 
@@ -76,7 +76,7 @@ async def main():
     worker = Worker(
         client,
         task_queue="agent-tasks-queue",
-        workflows=[EnterpriseHITLWorkflow],
+        workflows=[HITLWorkflow],
         activities=[
             execute_openhands_phase,
             prepare_workspace,

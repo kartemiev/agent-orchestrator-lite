@@ -1,4 +1,4 @@
-"""EnterpriseHITLWorkflow — базовый контур исполнения (Lite-версия).
+"""HITLWorkflow — базовый контур исполнения.
 
 Единственный workflow: принимает готовый JSON-план, проходит Human-in-the-Loop
 гейт (сигналы approve_plan_signal / reject_plan_signal, либо auto_approve) и
@@ -85,7 +85,7 @@ def _normalize_tasks(tasks: List[dict]) -> List[dict]:
 
 
 @workflow.defn
-class EnterpriseHITLWorkflow:
+class HITLWorkflow:
     def __init__(self):
         self.plan_approved: bool = False
         self.current_plan: dict = {}

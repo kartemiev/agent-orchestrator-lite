@@ -30,7 +30,7 @@ def health():
 
 @app.post("/api/v1/plan/direct")
 async def plan_direct(request: Request):
-    """Запускает EnterpriseHITLWorkflow по переданному JSON-плану.
+    """Запускает HITLWorkflow по переданному JSON-плану.
 
     Принимает JSON-тело. План передаётся либо строкой в ключе ``raw_json``,
     либо самим объектом (с ключом ``tasks``). ``auto_approve=true`` пропускает
@@ -90,7 +90,7 @@ async def plan_direct(request: Request):
     client = await Client.connect(TEMPORAL_HOST)
     wf_args = [plan_json_str, workflow_params] if workflow_params else [plan_json_str]
     await client.start_workflow(
-        "EnterpriseHITLWorkflow",
+        "HITLWorkflow",
         args=wf_args,
         id=wf_id,
         task_queue="agent-tasks-queue",
