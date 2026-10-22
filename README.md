@@ -31,8 +31,8 @@ context, or break the existing codebase.
 - **Parallel Wave Execution:** The orchestrator runs independent tasks
   concurrently in isolated workspaces using Temporal and OpenHands.
 - **Automated Delivery:** Once all tasks and tests complete successfully,
-  changes are automatically committed, pushed to GitHub, and wrapped into a
-  Pull Request.
+  changes are automatically committed, pushed to the remote, and wrapped into
+  a Pull Request (GitHub) or a Merge Request (GitLab.com / self-hosted).
 - **Optional Notifications:** Get push notifications (ntfy) and HTML email
   reports (Resend) when a sprint awaits approval, succeeds, or fails.
 
@@ -398,6 +398,9 @@ See [`.env.example`](./.env.example). Detailed configuration of LLM providers
 | `LLM_MODEL` | Global model (from `.env`; base name or LiteLLM prefix) | `deepseek-v4-pro` |
 | `GITHUB_TOKEN` | For cloning and creating PRs | — |
 | `GIT_TERMINAL_PROMPT` | Disable interactive git prompts (prevents agent hangs) | `0` |
+| `GIT_PROVIDER` | Force the Git provider: `github` or `gitlab` (else auto-detected) | auto |
+| `GITLAB_URL` | GitLab base URL (GitLab.com or self-hosted) | `https://gitlab.com` |
+| `GITLAB_TOKEN` | For creating Merge Requests on GitLab | — |
 | `BIND_IP` | IP used to publish ports | `127.0.0.1` |
 | `ORCHESTRATOR_GATEWAY_PORT` | Host port for the Gateway API | `8085` |
 | `STREAMLIT_PORT` | Host port for the Streamlit UI | `8501` |
@@ -458,6 +461,7 @@ orchestrator/
                  cleanup_workspace / git_push_and_create_pr /
                  send_notification_activity
   notifier.py    Optional notifications: ntfy (push) + Resend (email)
+  git_provider.py  Unified GitHub PR / GitLab MR creation
 ui/
   app.py         Streamlit Dashboard
 docker/
@@ -467,6 +471,7 @@ scripts/
   agent-cli.py   CLI: submit / status / inspect / logs / diagnose / list
 tests/
   test_notifier.py            Unit tests for the notifier module
+  test_git_provider.py        Unit tests for the git provider module
 examples/
   self-update.json            JSON plan "repository self-update"
   self-update-en.json         Same plan, English prompts

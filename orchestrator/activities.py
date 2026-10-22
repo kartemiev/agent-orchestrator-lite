@@ -7,7 +7,7 @@
   - execute_openhands_phase  — выполнение фазы через OpenHands agent-canvas API;
   - prepare_workspace        — создание изолированного workspace и копирование кода;
   - cleanup_workspace        — удаление/сохранение workspace после workflow;
-  - git_push_and_create_pr   — финальная доставка: push + Pull Request.
+  - git_push_and_create_pr   — финальная доставка: push + Pull Request / Merge Request.
 """
 
 import os
@@ -21,6 +21,7 @@ import requests
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
+import git_provider
 import notifier
 
 # --- Конфигурация LLM (передаётся в OpenHands как api_key/base_url) ---
@@ -545,10 +546,6 @@ def _openhands_poll(openhands_url, conv_id, task_id, headers, http_timeout):
 # Активность: git_push_and_create_pr (финальная доставка)
 # ---------------------------------------------------------------------------
 
-_GITHUB_REMOTE_RE = re.compile(
-    r"github\.com[/:]([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?$"
-)
-
 _TITLE_KEYS = ("graph_name", "title", "name", "plan_name")
 _PR_TITLE_MAX = 72
 _BRACE_ONLY_RE = re.compile(r"^\s*[{}\[\],};]+\s*$")
@@ -573,44 +570,25 @@ def _git_run(repo_dir: str, *args: str, timeout: int = 120) -> subprocess.Comple
     )
 
 
-def _github_owner_repo(repo_dir: str):
+def _remote_url(repo_dir: str) -> Optional[str]:
     try:
         out = _git_run(repo_dir, "config", "--get", "remote.origin.url")
     except Exception:
-        return None, None
-    if out.returncode != 0:
-        return None, None
-    match = _GITHUB_REMOTE_RE.search(out.stdout.strip())
-    if not match:
-        return None, None
-    return match.group(1), match.group(2)
-
-
-def _github_default_branch(owner: str, repo: str) -> Optional[str]:
-    token = os.getenv("GITHUB_TOKEN", "").strip()
-    if not token:
         return None
-    try:
-        resp = requests.get(
-            f"https://api.github.com/repos/{owner}/{repo}",
-            headers={
-                "Authorization": f"token {token}",
-                "Accept": "application/vnd.github+json",
-            },
-            timeout=30,
-        )
-        if resp.status_code == 200:
-            branch = resp.json().get("default_branch")
-            return str(branch) if branch else None
-    except Exception as exc:
-        activity.logger.warning(
-            "Не удалось получить default_branch %s/%s: %s", owner, repo, exc,
-        )
-    return None
+    if out.returncode != 0:
+        return None
+    return out.stdout.strip() or None
 
 
-def _default_branch(repo_dir: str, owner: str, repo: str) -> str:
-    branch = _github_default_branch(owner, repo)
+def _provider_token(provider: str) -> str:
+    key = "GITHUB_TOKEN" if provider == git_provider.PROVIDER_GITHUB else "GITLAB_TOKEN"
+    return os.getenv(key, "").strip()
+
+
+def _default_branch(
+    repo_dir: str, provider: str, project_path: str, project_name: str,
+) -> str:
+    branch = git_provider.default_branch(provider, project_path, project_name)
     if branch:
         return branch
     try:
@@ -665,74 +643,7 @@ def _push_branch(repo_dir: str, auth_url: str, branch: str) -> tuple:
     return False, (retry.stderr or retry.stdout or first_err).strip()[:800]
 
 
-def _create_pull_request(
-    owner: str, repo: str, branch: str, base: str, title: str, body: str,
-) -> dict:
-    if shutil.which("gh"):
-        try:
-            out = subprocess.run(
-                [
-                    "gh", "pr", "create",
-                    "--repo", f"{owner}/{repo}",
-                    "--base", base,
-                    "--head", branch,
-                    "--title", title,
-                    "--body", body,
-                ],
-                capture_output=True, text=True, timeout=60,
-            )
-            if out.returncode == 0 and out.stdout.strip():
-                url = out.stdout.strip().splitlines()[-1]
-                return {"status": "pr-created", "pull_request_url": url}
-        except Exception as exc:
-            activity.logger.warning(
-                "gh pr create не сработал — переключаюсь на REST API: %s", exc,
-            )
-
-    token = os.getenv("GITHUB_TOKEN", "").strip()
-    if not token:
-        return {
-            "status": "pr-failed", "pull_request_url": None,
-            "error": "GITHUB_TOKEN is not set",
-        }
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github+json",
-    }
-    api = f"https://api.github.com/repos/{owner}/{repo}/pulls"
-    try:
-        resp = requests.post(
-            api,
-            headers=headers,
-            json={"title": title, "head": branch, "base": base, "body": body},
-            timeout=30,
-        )
-        if resp.status_code == 201:
-            data = resp.json()
-            return {"status": "pr-created", "pull_request_url": data.get("html_url")}
-        if resp.status_code == 422:
-            existing = requests.get(
-                api,
-                headers=headers,
-                params={"head": f"{owner}:{branch}", "state": "open"},
-                timeout=30,
-            )
-            if existing.status_code == 200:
-                items = existing.json()
-                if items:
-                    return {
-                        "status": "pr-exists",
-                        "pull_request_url": items[0].get("html_url"),
-                    }
-        return {
-            "status": "pr-failed", "pull_request_url": None,
-            "error": resp.text[:500],
-        }
-    except Exception as exc:
-        return {
-            "status": "pr-failed", "pull_request_url": None,
-            "error": f"{type(exc).__name__}: {exc}",
-        }
+# Создание PR/MR вынесено в git_provider.create_merge_request (GitHub + GitLab).
 
 
 def _clean_title(value: str) -> str:
@@ -837,7 +748,7 @@ def _stage_targeted(repo_dir: str) -> list:
 
 @activity.defn
 def git_push_and_create_pr(params: dict) -> dict:
-    """Финальная доставка: push неотправленных коммитов и создание Pull Request."""
+    """Финальная доставка: push и создание PR (GitHub) / MR (GitLab)."""
     repo_dir = os.path.abspath(params.get("workspace_dir") or "")
     workflow_id = params.get("workflow_id") or "unknown"
     activity.heartbeat(f"git_push_and_create_pr:{repo_dir}:start")
@@ -849,19 +760,24 @@ def git_push_and_create_pr(params: dict) -> dict:
         )
         return {"status": "no-git", "pull_request_url": None, "commit_url": None}
 
-    owner, repo = _github_owner_repo(repo_dir)
-    if not owner or not repo:
+    remote_url = _remote_url(repo_dir)
+    provider = git_provider.detect_provider(remote_url or "", params.get("provider"))
+    if not provider:
         activity.logger.warning(
-            "git_push_and_create_pr: %s — GitHub remote не найден, доставка пропущена",
-            repo_dir,
+            "git_push_and_create_pr: %s — провайдер не распознан (%s), доставка пропущена",
+            repo_dir, remote_url,
         )
         return {"status": "no-git", "pull_request_url": None, "commit_url": None}
 
-    default_branch = _default_branch(repo_dir, owner, repo)
-    token = os.getenv("GITHUB_TOKEN", "").strip()
-    auth_url = (
-        f"https://x-access-token:{token}@github.com/{owner}/{repo}.git" if token else None
-    )
+    try:
+        project_path, project_name = git_provider.parse_remote(remote_url or "", provider)
+    except ValueError as exc:
+        activity.logger.warning("git_push_and_create_pr: %s", exc)
+        return {"status": "no-git", "pull_request_url": None, "commit_url": None}
+
+    default_branch = _default_branch(repo_dir, provider, project_path, project_name)
+    token = _provider_token(provider)
+    auth_url = git_provider.build_auth_url(provider, project_path, project_name, token)
 
     # 1) Fallback-коммит незакоммиченных изменений.
     try:
@@ -888,7 +804,7 @@ def git_push_and_create_pr(params: dict) -> dict:
     unpushed = _unpushed_commits(repo_dir, default_branch, auth_url)
     if not unpushed:
         activity.logger.info(
-            "git_push_and_create_pr: %s — неотправленных коммитов нет, push/PR не нужны",
+            "git_push_and_create_pr: %s — неотправленных коммитов нет, push/MR не нужны",
             repo_dir,
         )
         return {"status": "up-to-date", "pull_request_url": None, "commit_url": None}
@@ -901,17 +817,18 @@ def git_push_and_create_pr(params: dict) -> dict:
     rev = _git_run(repo_dir, "rev-parse", "HEAD")
     if rev.returncode == 0:
         head_sha = rev.stdout.strip()
-    commit_url = (
-        f"https://github.com/{owner}/{repo}/commit/{head_sha}" if head_sha else None
-    )
+    commit_url = git_provider.commit_url(provider, project_path, project_name, head_sha)
 
     if not auth_url:
+        token_key = (
+            "GITHUB_TOKEN" if provider == git_provider.PROVIDER_GITHUB else "GITLAB_TOKEN"
+        )
         activity.logger.warning(
-            "git_push_and_create_pr: %s — GITHUB_TOKEN не задан, push невозможен",
-            repo_dir,
+            "git_push_and_create_pr: %s — %s не задан, push невозможен",
+            repo_dir, token_key,
         )
         return {
-            "status": "push-failed", "error": "GITHUB_TOKEN is not set",
+            "status": "push-failed", "error": f"{token_key} is not set",
             "pull_request_url": None, "commit_url": commit_url,
         }
 
@@ -919,22 +836,27 @@ def git_push_and_create_pr(params: dict) -> dict:
     pushed, push_err = _push_branch(repo_dir, auth_url, branch)
     if not pushed:
         activity.logger.error(
-            "git_push_and_create_pr: push в %s/%s (%s) не удался: %s",
-            owner, repo, branch, push_err,
+            "git_push_and_create_pr: push в %s (%s) не удался: %s",
+            project_path, branch, push_err,
         )
         return {
             "status": "push-failed", "error": push_err,
             "pull_request_url": None, "commit_url": commit_url,
         }
 
-    # 4) Pull Request.
+    # 4) Pull Request / Merge Request.
     prompt = str(params.get("prompt") or "").strip()
     title = _extract_pr_title(prompt)
+    kind = (
+        "Pull Request"
+        if provider == git_provider.PROVIDER_GITHUB
+        else "Merge Request"
+    )
     body_lines = [
-        f"Automated Pull Request from **agent-orchestrator-lite** "
+        f"Automated {kind} from **agent-orchestrator-lite** "
         f"(workflow `{workflow_id}`).",
         "",
-        f"Base branch: `{default_branch}` · Feature branch: `{branch}`",
+        f"Target branch: `{default_branch}` · Source branch: `{branch}`",
         "",
         "### Commits (local → remote):",
     ]
@@ -944,22 +866,27 @@ def git_push_and_create_pr(params: dict) -> dict:
         if summary:
             body_lines += ["", "### Summary:", summary]
 
-    pr = _create_pull_request(
-        owner, repo, branch, default_branch, title, "\n".join(body_lines),
+    mr = git_provider.create_merge_request(
+        provider, project_path, project_name, branch, default_branch,
+        title, "\n".join(body_lines),
     )
     result = {
-        "status": pr["status"],
-        "pull_request_url": pr.get("pull_request_url"),
+        "status": mr["status"],
+        "provider": provider,
+        "pull_request_url": mr.get("url"),
+        "merge_request_url": (
+            mr.get("url") if provider == git_provider.PROVIDER_GITLAB else None
+        ),
         "commit_url": commit_url,
         "branch": branch,
         "base_branch": default_branch,
         "commits": unpushed,
     }
-    if pr.get("error"):
-        result["error"] = pr["error"]
+    if mr.get("error"):
+        result["error"] = mr["error"]
     activity.logger.info(
-        "git_push_and_create_pr: %s/%s:%s -> %s (%s)",
-        owner, repo, branch, pr["status"], pr.get("pull_request_url"),
+        "git_push_and_create_pr: %s:%s -> %s (%s)",
+        provider, branch, mr["status"], mr.get("url"),
     )
     return result
 

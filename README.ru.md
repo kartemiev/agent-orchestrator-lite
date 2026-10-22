@@ -32,8 +32,9 @@
   задачи параллельными волнами в изолированном workspace с помощью Temporal
   и OpenHands.
 - **Автоматическая доставка:** После успешного прогона всех задач и тестов
-  изменения автоматически коммитятся, пушатся в GitHub и оформляются в
-  Pull Request.
+  изменения автоматически коммитятся, пушатся в удалённый репозиторий и
+  оформляются в Pull Request (GitHub) или Merge Request (GitLab.com /
+  self-hosted).
 - **Опциональные уведомления:** push-уведомления (ntfy) и HTML-отчёты на почту
   (Resend) при ожидании одобрения, успехе или падении спринта.
 
@@ -399,6 +400,9 @@ python3 scripts/agent-cli.py submit examples/feature-bundle.json --auto-approve 
 | `LLM_MODEL` | Глобальная модель (из `.env`; базовое имя или LiteLLM-префикс) | `deepseek-v4-pro` |
 | `GITHUB_TOKEN` | Для клонирования и создания PR | — |
 | `GIT_TERMINAL_PROMPT` | Отключает интерактивные подсказки git (агент не зависает) | `0` |
+| `GIT_PROVIDER` | Принудительный провайдер: `github` или `gitlab` (иначе — автоопределение) | auto |
+| `GITLAB_URL` | Базовый URL GitLab (GitLab.com или self-hosted) | `https://gitlab.com` |
+| `GITLAB_TOKEN` | Для создания Merge Request в GitLab | — |
 | `BIND_IP` | IP публикации портов | `127.0.0.1` |
 | `ORCHESTRATOR_GATEWAY_PORT` | Хост-порт Gateway API | `8085` |
 | `STREAMLIT_PORT` | Хост-порт Streamlit UI | `8501` |
@@ -459,6 +463,7 @@ orchestrator/
                  cleanup_workspace / git_push_and_create_pr /
                  send_notification_activity
   notifier.py    Опциональные уведомления: ntfy (push) + Resend (email)
+  git_provider.py  Единое создание PR (GitHub) / MR (GitLab)
 ui/
   app.py         Streamlit Dashboard
 docker/
@@ -468,6 +473,7 @@ scripts/
   agent-cli.py   CLI: submit / status / inspect / logs / diagnose / list
 tests/
   test_notifier.py            Юнит-тесты модуля notifier
+  test_git_provider.py        Юнит-тесты модуля git_provider
 examples/
   self-update.json            JSON-план «самообновление репозитория»
   self-update-en.json         То же, промпты на английском
