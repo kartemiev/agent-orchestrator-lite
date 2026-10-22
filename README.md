@@ -53,6 +53,7 @@ context, or break the existing codebase.
 - [JSON plan format](#json-plan-format)
 - [Usage examples](#usage-examples)
   - [Repository self-update](#repository-self-update)
+  - [Feature & Bug Bundling (Advanced)](#feature--bug-bundling-advanced)
 - [Environment variables](#environment-variables)
   - [Resource Limits & Memory Recommendations](#resource-limits--memory-recommendations)
 - [Structure](#structure)
@@ -367,6 +368,22 @@ curl -X POST http://localhost:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/dir
 The plan contains 5 tasks across 4 waves: `git-sync` → parallel
 `backend/docs` + `ui` → `tests` → `deliver` (commit + push + PR).
 
+### Feature & Bug Bundling (Advanced)
+
+Combine several small backlog items (a bugfix, a small feature and a refactor)
+into one release DAG sprint. The ready-made plans live in
+[`feature-bundle.json`](./examples/feature-bundle.json) (Russian prompts) and
+[`feature-bundle-en.json`](./examples/feature-bundle-en.json) (English prompts);
+the detailed walkthrough is in
+[`advanced-use-cases.md`](./docs/examples/advanced-use-cases.md).
+
+The bundle shape — `git-sync` → parallel `bugfix_auth` + `add_rate_limiter` →
+`refactor_user_service` → `run_e2e_tests` → `deliver`:
+
+```bash
+python3 scripts/agent-cli.py submit examples/feature-bundle.json --auto-approve --wait
+```
+
 ## Environment variables
 
 See [`.env.example`](./.env.example). Detailed configuration of LLM providers
@@ -445,6 +462,8 @@ examples/
   self-update-en.json         Same plan, English prompts
   notification-service.json   JSON plan "Notification Service"
   notification-service-en.json  Same plan, English prompts
+  feature-bundle.json         JSON plan "Feature & Bug Bundle"
+  feature-bundle-en.json      Same plan, English prompts
 docs/
   openhands-setup.md          OpenHands and LLM provider setup
   openhands-setup.ru.md       Same in Russian
@@ -453,6 +472,8 @@ docs/
     self-update.ru.md         Same in Russian
     notification-service.md   End-to-end tutorial (ChatGPT → DAG → run)
     notification-service.ru.md  Same in Russian
+    advanced-use-cases.md     Feature & Bug Bundling walkthrough
+    advanced-use-cases.ru.md  Same in Russian
   blueprints/
     tree-refactoring-blueprint.md     Tree refactoring blueprint
     tree-refactoring-blueprint.ru.md  Same in Russian

@@ -1,0 +1,60 @@
+{
+  "graph_name": "Release Bundle: auth bugfix + rate limiter + UserService refactor",
+  "reasoning": "Собираем мелкие задачи бэклога в один релизный DAG-спринт: параллельные фиксы (баг авторизации и новый rate limiter), затем интеграционный рефакторинг UserService, e2e-тесты и доставка через Pull Request.",
+  "tasks": [
+    {
+      "id": "task_0_git_sync",
+      "title": "Git Sync: clone репозиторий",
+      "prompt": "Склонируй или обнови (git pull) репозиторий https://github.com/your-org/your-web-app в текущий рабочий каталог и подготовь рабочее окружение.",
+      "priority": 1,
+      "depends_on": [],
+      "model": "deepseek-v4-flash",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_a_bugfix_auth",
+      "title": "Bugfix: продление сессии через refresh-токен",
+      "prompt": "Исправь баг в сервисе авторизации: при истечении access-токена refresh-токен не продлевает сессию, и пользователь вылетает из системы. Убедись, что после обновления пары токенов сессия продолжается без повторного логина. Если меняется поведение эндпоинтов авторизации, обнови API_SPEC.md.",
+      "priority": 2,
+      "depends_on": ["task_0_git_sync"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_b_add_rate_limiter",
+      "title": "Feature: rate limiter для публичного API",
+      "prompt": "Добавь rate limiter (скользящее окно или token bucket) для публичных эндпоинтов API. Лимит запросов и размер окна задавай через переменные окружения; при превышении лимита возвращай HTTP 429 с заголовком Retry-After. Обнови ARCHITECTURE.md описанием нового компонента.",
+      "priority": 2,
+      "depends_on": ["task_0_git_sync"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_c_refactor_user_service",
+      "title": "Refactor: выделить UserService",
+      "prompt": "Отрефактори сервис пользователей: вынеси бизнес-логику из контроллера в отдельный сервисный слой UserService, сохранив публичное поведение API без изменений. Проверь, что правки из bugfix авторизации и rate limiter продолжают работать корректно.",
+      "priority": 3,
+      "depends_on": ["task_a_bugfix_auth", "task_b_add_rate_limiter"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_d_run_e2e_tests",
+      "title": "E2E: интеграционные тесты бандла",
+      "prompt": "Напиши или запусти e2e-тесты, покрывающие: вход с продлением сессии через refresh-токен, отказ с HTTP 429 при превышении лимита запросов и базовые операции пользователя после рефакторинга. Запусти python -m py_compile по изменённым файлам и pytest; исправь найденные проблемы.",
+      "priority": 4,
+      "depends_on": ["task_c_refactor_user_service"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_e_deliver",
+      "title": "Delivery: commit, push, PR",
+      "prompt": "Закоммить изменения понятным сообщением, запушь ветку release/feature-bundle через git push origin HEAD:refs/heads/release/feature-bundle и создай Pull Request в main с описанием всех изменений бандла (bugfix авторизации, rate limiter, рефакторинг UserService).",
+      "priority": 5,
+      "depends_on": ["task_d_run_e2e_tests"],
+      "model": "deepseek-v4-flash",
+      "engine": "openhands"
+    }
+  ]
+}

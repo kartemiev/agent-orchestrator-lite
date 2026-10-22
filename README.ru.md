@@ -54,6 +54,7 @@
 - [Формат JSON-плана](#формат-json-плана)
 - [Примеры использования](#примеры-использования)
   - [Самообновление репозитория](#самообновление-репозитория)
+  - [Feature & Bug Bundling (Advanced)](#feature--bug-bundling-advanced)
 - [Переменные окружения](#переменные-окружения)
   - [Лимиты ресурсов и рекомендации по памяти](#лимиты-ресурсов-и-рекомендации-по-памяти)
 - [Структура](#структура)
@@ -368,6 +369,22 @@ curl -X POST http://localhost:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/dir
 План содержит 5 задач в 4 волнах: `git-sync` → параллельные
 `backend/docs` + `ui` → `tests` → `deliver` (commit + push + PR).
 
+### Feature & Bug Bundling (Advanced)
+
+Объедините несколько мелких задач бэклога (багфикс, небольшая фича и
+рефакторинг) в один релизный DAG-спринт. Готовые планы — в
+[`feature-bundle.json`](./examples/feature-bundle.json) (промпты на русском) и
+[`feature-bundle-en.json`](./examples/feature-bundle-en.json) (промпты на
+английском); подробное описание — в
+[`advanced-use-cases.ru.md`](./docs/examples/advanced-use-cases.ru.md).
+
+Форма бандла — `git-sync` → параллельные `bugfix_auth` + `add_rate_limiter` →
+`refactor_user_service` → `run_e2e_tests` → `deliver`:
+
+```bash
+python3 scripts/agent-cli.py submit examples/feature-bundle.json --auto-approve --wait
+```
+
 ## Переменные окружения
 
 См. [`.env.example`](./.env.example). Подробная настройка LLM-провайдеров
@@ -446,6 +463,8 @@ examples/
   self-update-en.json         То же, промпты на английском
   notification-service.json   JSON-план «Notification Service»
   notification-service-en.json  То же, промпты на английском
+  feature-bundle.json         JSON-план «Feature & Bug Bundle»
+  feature-bundle-en.json      То же, промпты на английском
 docs/
   openhands-setup.md          Настройка OpenHands и LLM-провайдеров
   openhands-setup.ru.md       То же на русском
@@ -454,6 +473,8 @@ docs/
     self-update.ru.md         То же на русском
     notification-service.md   Сквозной туториал (ChatGPT → DAG → запуск)
     notification-service.ru.md  То же на русском
+    advanced-use-cases.md     Разбор Feature & Bug Bundling
+    advanced-use-cases.ru.md  То же на русском
   blueprints/
     tree-refactoring-blueprint.md     Blueprint рефакторинга дерева
     tree-refactoring-blueprint.ru.md  То же на русском

@@ -1,0 +1,60 @@
+{
+  "graph_name": "Release Bundle: auth bugfix + rate limiter + UserService refactor",
+  "reasoning": "We bundle small backlog items into a single release DAG sprint: parallel fixes (an auth bug and a new rate limiter), then the UserService integration refactor, e2e tests and delivery via a Pull Request.",
+  "tasks": [
+    {
+      "id": "task_0_git_sync",
+      "title": "Git Sync: clone the repository",
+      "prompt": "Clone or update (git pull) the repository https://github.com/your-org/your-web-app into the current working directory and prepare the working environment.",
+      "priority": 1,
+      "depends_on": [],
+      "model": "deepseek-v4-flash",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_a_bugfix_auth",
+      "title": "Bugfix: refresh-token session renewal",
+      "prompt": "Fix the bug in the authentication service: when the access token expires, the refresh token does not renew the session and the user is logged out. Make sure that after the token pair is refreshed the session continues without a second login. If the behaviour of the authentication endpoints changes, update API_SPEC.md.",
+      "priority": 2,
+      "depends_on": ["task_0_git_sync"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_b_add_rate_limiter",
+      "title": "Feature: rate limiter for the public API",
+      "prompt": "Add a rate limiter (sliding window or token bucket) for the public API endpoints. Configure the request limit and the window size through environment variables; when the limit is exceeded return HTTP 429 with a Retry-After header. Update ARCHITECTURE.md with a description of the new component.",
+      "priority": 2,
+      "depends_on": ["task_0_git_sync"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_c_refactor_user_service",
+      "title": "Refactor: extract UserService",
+      "prompt": "Refactor the user service: move the business logic out of the controller into a dedicated UserService layer while keeping the public API behaviour unchanged. Verify that the auth bugfix and the rate limiter changes still work correctly.",
+      "priority": 3,
+      "depends_on": ["task_a_bugfix_auth", "task_b_add_rate_limiter"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_d_run_e2e_tests",
+      "title": "E2E: integration tests for the bundle",
+      "prompt": "Write or run e2e tests covering: login with refresh-token session renewal, the HTTP 429 rejection when the request limit is exceeded, and basic user operations after the refactor. Run python -m py_compile over the changed files and pytest; fix the issues you find.",
+      "priority": 4,
+      "depends_on": ["task_c_refactor_user_service"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_e_deliver",
+      "title": "Delivery: commit, push, PR",
+      "prompt": "Commit the changes with a clear message, push the release/feature-bundle branch via git push origin HEAD:refs/heads/release/feature-bundle and open a Pull Request into main describing all the bundle changes (auth bugfix, rate limiter, UserService refactor).",
+      "priority": 5,
+      "depends_on": ["task_d_run_e2e_tests"],
+      "model": "deepseek-v4-flash",
+      "engine": "openhands"
+    }
+  ]
+}
