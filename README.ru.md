@@ -34,6 +34,8 @@
 - **Автоматическая доставка:** После успешного прогона всех задач и тестов
   изменения автоматически коммитятся, пушатся в GitHub и оформляются в
   Pull Request.
+- **Опциональные уведомления:** push-уведомления (ntfy) и HTML-отчёты на почту
+  (Resend) при ожидании одобрения, успехе или падении спринта.
 
 ## Содержание
 
@@ -406,6 +408,10 @@ python3 scripts/agent-cli.py submit examples/feature-bundle.json --auto-approve 
 | `OPENHANDS_MEM_LIMIT` | Лимит RAM контейнера `openhands` (cgroup) | `4g` |
 | `CLEANUP_WORKSPACE` | Удалять workspace после workflow | `true` |
 | `WAVE_MAX_CONCURRENCY` | Ширина волны DAG | `4` |
+| `NTFY_SERVER` | URL сервера ntfy для push-уведомлений | `https://ntfy.sh` |
+| `NTFY_TOPIC` | Топик ntfy для событий workflow | — |
+| `RESEND_API_KEY` | API-ключ Resend для HTML-отчётов | — |
+| `NOTIFICATION_EMAIL` | Получатель отчётов Resend | — |
 
 ### Лимиты ресурсов и рекомендации по памяти
 
@@ -450,7 +456,9 @@ orchestrator/
   worker.py      Temporal Worker
   workflows.py   HITLWorkflow (волновой DAG-исполнитель)
   activities.py  execute_openhands_phase / prepare_workspace /
-                 cleanup_workspace / git_push_and_create_pr
+                 cleanup_workspace / git_push_and_create_pr /
+                 send_notification_activity
+  notifier.py    Опциональные уведомления: ntfy (push) + Resend (email)
 ui/
   app.py         Streamlit Dashboard
 docker/
@@ -458,6 +466,8 @@ docker/
 docker-compose.yml
 scripts/
   agent-cli.py   CLI: submit / status / inspect / logs / diagnose / list
+tests/
+  test_notifier.py            Юнит-тесты модуля notifier
 examples/
   self-update.json            JSON-план «самообновление репозитория»
   self-update-en.json         То же, промпты на английском

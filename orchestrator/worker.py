@@ -5,6 +5,7 @@
   - prepare_workspace
   - cleanup_workspace
   - git_push_and_create_pr
+  - send_notification_activity
 """
 
 import asyncio
@@ -22,6 +23,7 @@ from activities import (
     execute_openhands_phase,
     git_push_and_create_pr,
     prepare_workspace,
+    send_notification_activity,
 )
 from workflows import HITLWorkflow
 
@@ -82,6 +84,7 @@ async def main():
             prepare_workspace,
             cleanup_workspace,
             git_push_and_create_pr,
+            send_notification_activity,
         ],
         activity_executor=activity_executor,
         max_concurrent_activities=MAX_CONCURRENT_ACTIVITIES,

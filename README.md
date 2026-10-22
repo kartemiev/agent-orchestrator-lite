@@ -33,6 +33,8 @@ context, or break the existing codebase.
 - **Automated Delivery:** Once all tasks and tests complete successfully,
   changes are automatically committed, pushed to GitHub, and wrapped into a
   Pull Request.
+- **Optional Notifications:** Get push notifications (ntfy) and HTML email
+  reports (Resend) when a sprint awaits approval, succeeds, or fails.
 
 ## Contents
 
@@ -405,6 +407,10 @@ See [`.env.example`](./.env.example). Detailed configuration of LLM providers
 | `OPENHANDS_MEM_LIMIT` | Container RAM limit for `openhands` (cgroup) | `4g` |
 | `CLEANUP_WORKSPACE` | Remove the workspace after a workflow | `true` |
 | `WAVE_MAX_CONCURRENCY` | DAG wave width | `4` |
+| `NTFY_SERVER` | ntfy server URL for push notifications | `https://ntfy.sh` |
+| `NTFY_TOPIC` | ntfy topic to publish workflow events to | — |
+| `RESEND_API_KEY` | Resend API key for HTML email reports | — |
+| `NOTIFICATION_EMAIL` | Recipient for Resend reports | — |
 
 ### Resource Limits & Memory Recommendations
 
@@ -449,7 +455,9 @@ orchestrator/
   worker.py      Temporal Worker
   workflows.py   HITLWorkflow (wave-based DAG executor)
   activities.py  execute_openhands_phase / prepare_workspace /
-                 cleanup_workspace / git_push_and_create_pr
+                 cleanup_workspace / git_push_and_create_pr /
+                 send_notification_activity
+  notifier.py    Optional notifications: ntfy (push) + Resend (email)
 ui/
   app.py         Streamlit Dashboard
 docker/
@@ -457,6 +465,8 @@ docker/
 docker-compose.yml
 scripts/
   agent-cli.py   CLI: submit / status / inspect / logs / diagnose / list
+tests/
+  test_notifier.py            Unit tests for the notifier module
 examples/
   self-update.json            JSON plan "repository self-update"
   self-update-en.json         Same plan, English prompts

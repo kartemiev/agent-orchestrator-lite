@@ -43,6 +43,9 @@ GIT_PUSH_RETRY_POLICY = RetryPolicy(
     maximum_attempts=3,
 )
 
+# Уведомления — best-effort, без ретраев (не должны мешать основному контуру).
+NOTIFY_RETRY_POLICY = RetryPolicy(maximum_attempts=1)
+
 
 def resolve_wave_max_concurrency(plan, params=None) -> int:
     """Ширина волны DAG: ``params`` -> ``plan`` -> env ``WAVE_MAX_CONCURRENCY``."""
@@ -138,6 +141,16 @@ class HITLWorkflow:
         wave_concurrency = resolve_wave_max_concurrency(self.current_plan, _p)
 
         # Human-in-the-Loop гейт.
+        if not self.auto_approve:
+            await self._notify(
+                "hitl",
+                "⏳ Sprint awaiting approval",
+                (
+                    f"Workflow {workflow.info().workflow_id} ожидает одобрения плана. "
+                    "Подтвердите или отклоните его в Streamlit UI."
+                ),
+                priority="high",
+            )
         await workflow.wait_condition(
             lambda: self.plan_approved or self.rejection_reason != ""
         )
@@ -213,6 +226,7 @@ class HITLWorkflow:
                             workflow.logger.info("Задача %s завершена", task["id"])
 
             # Финальная доставка (git push + PR) — только при отсутствии сбоев.
+            pr_url = None
             if not failed:
                 try:
                     push_result = await workflow.execute_activity(
@@ -227,6 +241,8 @@ class HITLWorkflow:
                     )
                     all_results.append(push_result)
                     status = push_result.get("status") if isinstance(push_result, dict) else push_result
+                    if isinstance(push_result, dict):
+                        pr_url = push_result.get("pull_request_url")
                     workflow.logger.info("git_push_and_create_pr result: %s", status)
                 except Exception as exc:
                     delivery_failed = True
@@ -241,6 +257,33 @@ class HITLWorkflow:
                 summary.append(f"FAILED: {len(failed)} task(s) — {', '.join(failed.keys())}")
             if delivery_failed:
                 summary.append("FAILED: final delivery (git push / PR)")
+
+            # Уведомления о результате спринта.
+            wf_id = workflow.info().workflow_id
+            if failed or delivery_failed:
+                await self._notify(
+                    "failure",
+                    "❌ Sprint failed",
+                    (
+                        f"Workflow {wf_id} завершился с ошибкой: "
+                        f"{len(failed)} задача(и) упала."
+                        + (" Финальная доставка не удалась." if delivery_failed else "")
+                    ),
+                    priority="urgent",
+                )
+            elif pr_url:
+                await self._notify(
+                    "success",
+                    "✅ Sprint delivered",
+                    f"Workflow {wf_id} завершён. Pull Request: {pr_url}",
+                    html=(
+                        f"<h3>✅ Sprint delivered</h3>"
+                        f"<p>Workflow <code>{wf_id}</code> завершён.</p>"
+                        f"<p>Pull Request: <a href=\"{pr_url}\">{pr_url}</a></p>"
+                    ),
+                    priority="default",
+                )
+
             return "DAG execution finished.\n" + "\n".join(summary)
 
         finally:
@@ -263,5 +306,24 @@ class HITLWorkflow:
             heartbeat_timeout=timedelta(minutes=10),
             retry_policy=OPENHANDS_RETRY_POLICY,
         )
+
+    async def _notify(self, event: str, title: str, message: str,
+                      html=None, priority: str = "default") -> None:
+        """Fire-and-forget уведомление; никогда не роняет workflow."""
+        try:
+            await workflow.execute_activity(
+                "send_notification_activity",
+                {
+                    "event": event,
+                    "title": title,
+                    "message": message,
+                    "html": html,
+                    "priority": priority,
+                },
+                start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=NOTIFY_RETRY_POLICY,
+            )
+        except Exception as exc:  # noqa: BLE001
+            workflow.logger.warning("Уведомление (%s) не отправлено: %s", event, exc)
 
 

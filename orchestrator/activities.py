@@ -21,6 +21,8 @@ import requests
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
+import notifier
+
 # --- Конфигурация LLM (передаётся в OpenHands как api_key/base_url) ---
 LLM_API_URL = os.getenv("LLM_API_URL", "https://api.deepseek.com")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
@@ -960,6 +962,25 @@ def git_push_and_create_pr(params: dict) -> dict:
         owner, repo, branch, pr["status"], pr.get("pull_request_url"),
     )
     return result
+
+
+@activity.defn
+async def send_notification_activity(payload: dict) -> dict:
+    """Отправляет уведомление о событии workflow (HITL / SUCCESS / FAILURE).
+
+    Fire-and-forget: не блокирует workflow (фоновые HTTP-запросы уходят в таски
+    notifier). Если каналы не настроены или что-то упало — молча продолжает работу.
+    """
+    event = str(payload.get("event") or "unknown")
+    title = str(payload.get("title") or "agent-orchestrator")
+    message = str(payload.get("message") or "")
+    html = payload.get("html")
+    priority = str(payload.get("priority") or "default")
+    try:
+        await notifier.send_notification(title, message, html=html, priority=priority)
+    except Exception as exc:  # noqa: BLE001
+        activity.logger.warning("send_notification_activity(%s): %s", event, exc)
+    return {"status": "scheduled", "event": event}
 
 
 
