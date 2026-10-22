@@ -1,97 +1,99 @@
-# AGENTS.md — спецификация JSON-планов для agent-orchestrator-lite
+ English | [Русский](AGENTS.ru.md)
 
-> **Назначение:** этот документ — системная инструкция (системный промпт) для
-> внешних LLM (ChatGPT, Claude, DeepSeek и др.). Прикрепи его к запросу на
-> проектирование фичи, чтобы модель вернула строго валидный `ExecutionPlan`,
-> пригодный для запуска в `agent-orchestrator-lite`.
+# AGENTS.md — JSON plan specification for agent-orchestrator-lite
 
-## Что такое agent-orchestrator-lite
+> **Purpose:** this document is a system instruction (system prompt) for
+> external LLMs (ChatGPT, Claude, DeepSeek, etc.). Attach it to a feature-design
+> request so that the model returns a strictly valid `ExecutionPlan` that can be
+> run in `agent-orchestrator-lite`.
 
-`agent-orchestrator-lite` исполняет DAG-планы (схема `ExecutionPlan`) в
-изолированных workspace через OpenHands под управлением Temporal. Один workflow
-= один JSON-план; задачи плана исполняются волнами через `asyncio.gather`,
-где параллелизм задаётся только полем `depends_on`.
+## What agent-orchestrator-lite is
 
----
-
-## Правила построения DAG-графа
-
-1. **Обязательная первая волна (Wave 1) — git-sync.**
-   Самой первой задачей ВСЕГДА должна быть задача клонирования/подготовки
-   git-репозитория с `"id": "task_0_git_sync"` и `"depends_on": []`.
-   Её `prompt` обязан содержать маркеры клонирования/обновления
-   (`git clone`, `git pull`, «клонируй», «склонируй», «обнови репозиторий») —
-   иначе фаза упадёт с `EmptyWorkspaceError` на пустом workspace.
-
-2. **`depends_on` — строго по DAG, без циклов.**
-   Каждая последующая задача обязана ссылаться на `id` реально существующих
-   задач. Граф обязан быть ацикличным: цикл или ссылка на несуществующий `id`
-   завершит workflow ошибкой `RuntimeError`.
-
-3. **Параллелизм задаётся только `depends_on`, не `priority`.**
-   Задачи с одинаковым массивом `depends_on` исполняются одной волной
-   параллельно через `asyncio.gather`. Не выстраивай искусственную «лесенку»
-   (`step_1 → step_2 → step_3`), если задачи физически независимы — группируй
-   их в один уровень.
-
-4. **Исполнитель `engine` — строго `"openhands"`.**
-   В Lite-версии единственный движок — OpenHands (terminal + file_editor).
-   Каждый узел должен содержать `"engine": "openhands"`.
-
-5. **Финальная волна — проверка и/или доставка.**
-   Последняя волна должна содержать шаг проверки (тесты/линтер) и/или шаг
-   коммита + создания Pull Request. Помимо явного шага доставки, оркестратор
-   дополнительно вызывает встроенную активность `git_push_and_create_pr`
-   (страховка от потери незакоммиченных/неотправленных изменений).
-
-6. **Ограничения промптов OpenHands.**
-   - Каждый workflow работает в изолированном workspace
-     `/app/workspace/runs/{workflow_id}`; правь файлы только внутри него.
-   - Запрещены деструктивные git-команды: `git checkout`, `git restore`,
-     `git reset`, `git stash`, `git clean`. Для публикации ветки используй
-     `git push origin HEAD:refs/heads/<branch>` вместо переключения веток.
-   - Задачи, правящие существующие файлы, требуют наполненного workspace
-     (см. правило №1). Задачи, создающие файлы с нуля, допустимы и в пустом
-     workspace — но безопаснее всё равно начинать с git-sync.
-   - Пути файлов в `prompt` — реальные относительные пути репозитория, а не
-     абстрактные имена.
+`agent-orchestrator-lite` executes DAG plans (the `ExecutionPlan` schema) in
+isolated workspaces through OpenHands under Temporal control. One workflow
+= one JSON plan; the tasks of the plan are executed in waves via `asyncio.gather`,
+where parallelism is defined solely by the `depends_on` field.
 
 ---
 
-## Схема JSON (`ExecutionPlan`)
+## DAG construction rules
 
-Верхнеуровневый объект:
+1. **Mandatory first wave (Wave 1) — git-sync.**
+   The very first task MUST ALWAYS be a task that clones/prepares the
+   git repository, with `"id": "task_0_git_sync"` and `"depends_on": []`.
+   Its `prompt` must contain clone/update markers
+   (`git clone`, `git pull`, "clone", "pull", "update the repository") —
+   otherwise the phase fails with `EmptyWorkspaceError` on an empty workspace.
 
-| Поле | Тип | Обязательное | Описание |
+2. **`depends_on` — strictly a DAG, no cycles.**
+   Every subsequent task must reference the `id` of tasks that actually exist.
+   The graph must be acyclic: a cycle or a reference to a non-existent `id`
+   terminates the workflow with a `RuntimeError`.
+
+3. **Parallelism is defined only by `depends_on`, not by `priority`.**
+   Tasks with an identical `depends_on` array are executed in one wave in
+   parallel via `asyncio.gather`. Do not build an artificial "ladder"
+   (`step_1 → step_2 → step_3`) when the tasks are physically independent —
+   group them into a single level.
+
+4. **The `engine` executor is strictly `"openhands"`.**
+   In the Lite version the only engine is OpenHands (terminal + file_editor).
+   Every node must contain `"engine": "openhands"`.
+
+5. **The final wave — verification and/or delivery.**
+   The last wave must contain a verification step (tests/linter) and/or a step
+   that commits + opens a Pull Request. In addition to an explicit delivery step,
+   the orchestrator also calls the built-in `git_push_and_create_pr` activity
+   (a safety net against losing uncommitted/unpushed changes).
+
+6. **Constraints for OpenHands prompts.**
+   - Every workflow runs in an isolated workspace
+     `/app/workspace/runs/{workflow_id}`; modify files only inside it.
+   - Destructive git commands are forbidden: `git checkout`, `git restore`,
+     `git reset`, `git stash`, `git clean`. To publish a branch use
+     `git push origin HEAD:refs/heads/<branch>` instead of switching branches.
+   - Tasks that modify existing files require a populated workspace
+     (see rule #1). Tasks that create files from scratch are allowed even in an
+     empty workspace — but starting with git-sync is safer anyway.
+   - File paths in `prompt` are real repository-relative paths, not
+     abstract names.
+
+---
+
+## JSON schema (`ExecutionPlan`)
+
+Top-level object:
+
+| Field | Type | Required | Description |
 |---|---|---|---|
-| `reasoning` | string | нет | Обоснование архитектурного решения/декомпозиции. |
-| `tasks` | list of object | да | Список задач DAG в порядке зависимостей. |
+| `reasoning` | string | no | Rationale for the architectural decision/decomposition. |
+| `tasks` | list of object | yes | List of DAG tasks in dependency order. |
 
-> Опционально: `wave_max_concurrency` (int) — ширина волны (сколько задач
-> стартует параллельно). По умолчанию берётся из `WAVE_MAX_CONCURRENCY` (4).
+> Optional: `wave_max_concurrency` (int) — wave width (how many tasks start in
+> parallel). Defaults to `WAVE_MAX_CONCURRENCY` (4).
 
-### Поля задачи (`tasks[i]`)
+### Task fields (`tasks[i]`)
 
-| Поле | Тип | Обязательное | Описание |
+| Field | Type | Required | Description |
 |---|---|---|---|
-| `id` | string | да | Уникальный идентификатор (`task_0_git_sync`, `task_a_...`). |
-| `title` | string | да | Краткое название задачи. |
-| `prompt` | string | да | Детальная инструкция для OpenHands: что сделать, какие файлы создать/изменить, как проверить результат. |
-| `depends_on` | list of string | да | Массив `id` задач, от которых зависит задача. Для первой задачи — `[]`. |
-| `engine` | string | да | Строго `"openhands"`. |
-| `priority` | int (1..5) | нет | Приоритет задачи. НЕ влияет на порядок/параллелизм (параллелизм задаётся только `depends_on`). |
-| `model` | string | нет | Per-node LLM-модель. Если не задана — берётся `LLM_MODEL` из `.env`. Имя может быть базовым именем провайдера (`deepseek-v4-pro`, `gpt-4o`) или LiteLLM-префиксом (`openrouter/...`, `deepseek/...`). |
+| `id` | string | yes | Unique identifier (`task_0_git_sync`, `task_a_...`). |
+| `title` | string | yes | Short task title. |
+| `prompt` | string | yes | Detailed instruction for OpenHands: what to do, which files to create/modify, how to verify the result. |
+| `depends_on` | list of string | yes | Array of task `id`s the task depends on. For the first task — `[]`. |
+| `engine` | string | yes | Strictly `"openhands"`. |
+| `priority` | int (1..5) | no | Task priority. Does NOT affect order/parallelism (parallelism is defined only by `depends_on`). |
+| `model` | string | no | Per-node LLM model. If omitted — `LLM_MODEL` from `.env` is used. The name can be a provider base name (`deepseek-v4-pro`, `gpt-4o`) or a LiteLLM prefix (`openrouter/...`, `deepseek/...`). |
 
-## Эталонный пример (2 задачи: git-sync → feature)
+## Reference example (2 tasks: git-sync → feature)
 
 ```json
 {
-  "reasoning": "Минимальный план: клонирование репозитория и добавление файла.",
+  "reasoning": "Minimal plan: clone the repository and add a file.",
   "tasks": [
     {
       "id": "task_0_git_sync",
-      "title": "Git Sync: clone репозиторий",
-      "prompt": "Склонируй или обнови (git pull) репозиторий https://github.com/your-org/your-web-app в текущий рабочий каталог и подготовь рабочее окружение.",
+      "title": "Git Sync: clone the repository",
+      "prompt": "Clone or update (git pull) the repository https://github.com/your-org/your-web-app into the current working directory and prepare the working environment.",
       "priority": 1,
       "depends_on": [],
       "model": "deepseek-v4-flash",
@@ -99,8 +101,8 @@
     },
     {
       "id": "task_a_feature",
-      "title": "Добавить фичу",
-      "prompt": "Создай файл README.md с кратким описанием проекта и добавь в app/main.py эндпоинт GET /ping, возвращающий {\"status\": \"ok\"}.",
+      "title": "Add a feature",
+      "prompt": "Create a README.md file with a brief project description and add a GET /ping endpoint to app/main.py that returns {\"status\": \"ok\"}.",
       "priority": 2,
       "depends_on": ["task_0_git_sync"],
       "model": "deepseek-v4-pro",
@@ -112,24 +114,23 @@
 
 ---
 
-## Как использовать
+## How to use
 
-1. Скопируй текст ниже в чат с LLM вместе с файлами проекта
+1. Copy the text below into a chat with an LLM together with the project files
    (`ARCHITECTURE.md`, `API_SPEC.md`, `DATABASE.md`).
 
 ```text
-Спроектируй фичу «<опиши фичу>» по правилам из прикреплённого AGENTS.md.
-Верни только валидный JSON-объект ExecutionPlan (без markdown-фенсов и
-пояснений вне JSON): с обязательной первой задачей git-sync, ацикличным
-depends_on и разбивкой на параллельные волны.
+Design the feature "<describe the feature>" following the rules in the attached AGENTS.md.
+Return only a valid ExecutionPlan JSON object (no markdown fences and no
+explanations outside the JSON): with the mandatory git-sync first task, an acyclic
+depends_on, and a split into parallel waves.
 ```
 
-2. Полученный JSON вставь в Streamlit UI (`http://localhost:8501`) или отправь
-   на `POST /api/v1/plan/direct` (см. [`README.md`](./README.md)).
+2. Paste the resulting JSON into the Streamlit UI (`http://localhost:8501`) or send
+   it to `POST /api/v1/plan/direct` (see [`README.md`](./README.md)).
 
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d @examples/notification-service.json
 ```
-

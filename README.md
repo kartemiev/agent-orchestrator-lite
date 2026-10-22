@@ -1,83 +1,85 @@
+ English | [Русский](README.ru.md)
+
 # agent-orchestrator-lite
 
-Облегчённая публичная версия `agent-orchestrator`: только базовый контур
-исполнения готового JSON-плана через OpenHands под управлением Temporal.
+A lightweight public version of `agent-orchestrator`: only the core contour for
+executing a pre-built JSON plan through OpenHands under Temporal control.
 
-## Что внутри
+## What's inside
 
-- **FastAPI Gateway** (`orchestrator/main.py`) — `GET /health` и `POST /api/v1/plan/direct`.
-- **Temporal Server + Postgres** (`temporal`, `temporal-db`) — оркестрация и история workflow.
-- **OpenHands** (`openhands`) — агент, исполняющий фазы DAG-плана (terminal + file_editor).
-- **Единый воркер** (`orchestrator/worker.py`) — регистрирует только
-  `EnterpriseHITLWorkflow` и базовые активности.
-- **Streamlit Dashboard** (`agent-ui`) — ввод JSON-плана, auto-approve и
-  мониторинг/сигналы workflow.
+- **FastAPI Gateway** (`orchestrator/main.py`) — `GET /health` and `POST /api/v1/plan/direct`.
+- **Temporal Server + Postgres** (`temporal`, `temporal-db`) — orchestration and workflow history.
+- **OpenHands** (`openhands`) — the agent that executes the phases of a DAG plan (terminal + file_editor).
+- **Single worker** (`orchestrator/worker.py`) — registers only
+  `EnterpriseHITLWorkflow` and the base activities.
+- **Streamlit Dashboard** (`agent-ui`) — JSON plan input, auto-approve and
+  workflow monitoring/signals.
 
-## Что удалено относительно полной версии
+## What was removed compared to the full version
 
-- Воркеры и очереди `agent-aider`, `agent-aitm`, `agent-dogfood`, `agent-swarm`.
-- Совет Старейшин (Council), `council_panel.json`,
-  `scripts/multi_model_review_dispatcher.py` и все зависимости от них.
-- LLM Planner (автодекомпозиция через DeepSeek) и интеграции
-  OpenRouter / SiliconFlow / DashScope / Resend.
-- Canvas fast-path (`canvas_claude_streamer.py`, `canvas_bridge.py`).
-- Папка `scripts/` и лишние спецификации/blueprints.
+- The `agent-aider`, `agent-aitm`, `agent-dogfood`, `agent-swarm` workers and queues.
+- The Council of Elders (Council), `council_panel.json`,
+  `scripts/multi_model_review_dispatcher.py` and all their dependencies.
+- The LLM Planner (auto-decomposition via DeepSeek) and the
+  OpenRouter / SiliconFlow / DashScope / Resend integrations.
+- The Canvas fast-path (`canvas_claude_streamer.py`, `canvas_bridge.py`).
+- The `scripts/` folder and the extra specifications/blueprints.
 
-## Быстрый старт
+## Quick start
 
 ```bash
 cd /home/kartemiev/projects/agent-orchestrator-lite
-cp .env.example .env        # заполните LLM_API_KEY и GITHUB_TOKEN
+cp .env.example .env        # fill in LLM_API_KEY and GITHUB_TOKEN
 docker compose up -d
 ```
 
-После старта:
+Once everything is up:
 
-| Сервис | Адрес |
+| Service | Address |
 |---|---|
 | Gateway API | http://127.0.0.1:8085 (health: `/health`) |
 | Streamlit UI | http://127.0.0.1:8501 |
 | Temporal UI | http://127.0.0.1:8233 |
 | OpenHands | http://127.0.0.1:8000 |
 
-Остановка: `docker compose down`.
+Shutdown: `docker compose down`.
 
-## Запуск workflow
+## Running a workflow
 
-### Через REST API
+### Via the REST API
 
 ```bash
 curl -X POST http://127.0.0.1:8085/api/v1/plan/direct \
   -H 'Content-Type: application/json' \
-  -d '{"raw_json": "{\"tasks\": [{\"id\": \"step_1\", \"title\": \"Hello\", \"prompt\": \"Создай файл hello.txt с текстом hi\", \"depends_on\": [], \"engine\": \"openhands\"}]}", "auto_approve": true}'
+  -d '{"raw_json": "{\"tasks\": [{\"id\": \"step_1\", \"title\": \"Hello\", \"prompt\": \"Create a hello.txt file containing hi\", \"depends_on\": [], \"engine\": \"openhands\"}]}", "auto_approve": true}'
 ```
 
-Ответ: `{"status": "triggered", "workflow_id": "direct-plan-...", ...}`.
+Response: `{"status": "triggered", "workflow_id": "direct-plan-...", ...}`.
 
-### Через UI
+### Via the UI
 
-1. Вставьте готовый JSON-план в поле «Готовый JSON-план».
-2. Отметьте `Auto-approve` (или утвердите план вручную в панели мониторинга).
-3. Нажмите «Запустить».
+1. Paste a ready-made JSON plan into the "Ready-made JSON plan" field.
+2. Tick `Auto-approve` (or approve the plan manually in the monitoring panel).
+3. Press "Run".
 
-## Формат JSON-плана
+## JSON plan format
 
 ```json
 {
-  "reasoning": "Необязательное обоснование",
+  "reasoning": "Optional rationale",
   "tasks": [
     {
       "id": "step_1",
       "title": "Git Sync",
-      "prompt": "Склонируй репозиторий https://github.com/owner/repo и подготовь окружение.",
+      "prompt": "Clone the repository https://github.com/owner/repo and prepare the environment.",
       "depends_on": [],
       "model": "deepseek-v4-pro",
       "engine": "openhands"
     },
     {
       "id": "step_2",
-      "title": "Создать модель",
-      "prompt": "Создай Pydantic модель User в файле app/models.py",
+      "title": "Create the model",
+      "prompt": "Create the Pydantic model User in the file app/models.py",
       "depends_on": ["step_1"],
       "engine": "openhands"
     }
@@ -85,36 +87,36 @@ curl -X POST http://127.0.0.1:8085/api/v1/plan/direct \
 }
 ```
 
-- `id` — уникальный идентификатор шага (если не задан, генерируется `task_N`).
-- `depends_on` — список id шагов, от которых зависит шаг. Параллелизм задаётся
-  только через `depends_on`: шаги с одинаковым набором зависимостей исполняются
-  одной волной через `asyncio.gather`.
-- `prompt` — инструкция для агента OpenHands.
-- `engine` — в Lite-версии единственный движок `openhands` (все шаги, включая
-  git-sync, выполняются OpenHands).
-- `model` — опциональная per-node LLM-модель (иначе `LLM_MODEL` из `.env`). Имя может быть базовым (`deepseek-v4-pro`, `gpt-4o`) или с LiteLLM-префиксом (`openrouter/...`, `deepseek/...`).
+- `id` — unique step identifier (generated as `task_N` when omitted).
+- `depends_on` — list of step ids the step depends on. Parallelism is driven
+  solely by `depends_on`: steps with the same set of dependencies are executed
+  in one wave via `asyncio.gather`.
+- `prompt` — instruction for the OpenHands agent.
+- `engine` — in the Lite version the only engine is `openhands` (all steps,
+  including git-sync, are executed by OpenHands).
+- `model` — optional per-node LLM model (otherwise `LLM_MODEL` from `.env`). The name can be a base name (`deepseek-v4-pro`, `gpt-4o`) or carry a LiteLLM prefix (`openrouter/...`, `deepseek/...`).
 
-Полная спецификация формата и правила построения DAG для LLM-архитектора —
-в [`AGENTS.md`](./AGENTS.md) (системный промпт для ChatGPT / Claude / DeepSeek).
+The full format specification and the DAG-building rules for an LLM architect
+live in [`AGENTS.md`](./AGENTS.md) (a system prompt for ChatGPT / Claude / DeepSeek).
 
-Волновой DAG-исполнитель исполняет шаги строго по переданному плану: волна
-готовых задач запускается параллельно, падение одной задачи изолируется
-(зависимые шаги пропускаются), в конце — финальная доставка `git push` + PR
-и очистка workspace.
+The wave-based DAG executor runs the steps strictly according to the submitted
+plan: a wave of ready tasks is launched in parallel, a single failing task is
+isolated (dependent steps are skipped), and at the end the final `git push` + PR
+delivery and workspace cleanup happen.
 
-## Примеры использования
+## Usage examples
 
-📘 **[Сквозной туториал: разработка фичи с ChatGPT + Streamlit](docs/examples/notification-service.md)** —
-сценарий «от и до»: проектируем DAG-план через внешний LLM-чат и исполняем его
-в оркестраторе (готовый план: [`notification-service.json`](./examples/notification-service.json)).
+📘 **[End-to-end tutorial: building a feature with ChatGPT + Streamlit](docs/examples/notification-service.md)** —
+a start-to-finish scenario: design a DAG plan in an external LLM chat and run it
+in the orchestrator (ready plan: [`notification-service.json`](./examples/notification-service.json)).
 
-### Самообновление репозитория
+### Repository self-update
 
-Готовый пример «оркестратор обновляет сам себя» находится в
-[`self-update.json`](./examples/self-update.json), а его подробное описание —
-в [`self-update.md`](./docs/examples/self-update.md).
+The ready-made "the orchestrator updates itself" example lives in
+[`self-update.json`](./examples/self-update.json), and its detailed description
+is in [`self-update.md`](./docs/examples/self-update.md).
 
-Короткий запуск через cURL (план берётся из файла напрямую):
+Short run via cURL (the plan is taken from the file directly):
 
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
@@ -122,7 +124,7 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
   -d @examples/self-update.json
 ```
 
-То же самое с Auto-approve (без ручного подтверждения):
+The same with Auto-approve (no manual confirmation):
 
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
@@ -130,31 +132,31 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
   -d "$(python3 -c 'import json; d=json.load(open("examples/self-update.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
 ```
 
-План содержит 5 задач в 4 волнах: `git-sync` → параллельные
+The plan contains 5 tasks across 4 waves: `git-sync` → parallel
 `backend/docs` + `ui` → `tests` → `deliver` (commit + push + PR).
 
-## Переменные окружения
+## Environment variables
 
-См. [`.env.example`](./.env.example). Подробная настройка LLM-провайдеров
-(OpenAI / OpenRouter / DeepSeek) и контейнера OpenHands — в
-[`openhands-setup.md`](./docs/openhands-setup.md). Ключевые:
+See [`.env.example`](./.env.example). Detailed configuration of LLM providers
+(OpenAI / OpenRouter / DeepSeek) and of the OpenHands container is described in
+[`openhands-setup.md`](./docs/openhands-setup.md). The key ones:
 
-| Переменная | Описание | По умолчанию |
+| Variable | Description | Default |
 |---|---|---|
-| `LLM_API_KEY` | Ключ LLM для OpenHands | — |
-| `LLM_MODEL` | Глобальная модель (из `.env`; базовое имя или LiteLLM-префикс) | `deepseek-v4-pro` |
-| `GITHUB_TOKEN` | Для клонирования и создания PR | — |
-| `BIND_IP` | IP публикации портов | `127.0.0.1` |
-| `CLEANUP_WORKSPACE` | Удалять workspace после workflow | `true` |
-| `WAVE_MAX_CONCURRENCY` | Ширина волны DAG | `4` |
+| `LLM_API_KEY` | LLM key for OpenHands | — |
+| `LLM_MODEL` | Global model (from `.env`; base name or LiteLLM prefix) | `deepseek-v4-pro` |
+| `GITHUB_TOKEN` | For cloning and creating PRs | — |
+| `BIND_IP` | IP used to publish ports | `127.0.0.1` |
+| `CLEANUP_WORKSPACE` | Remove the workspace after a workflow | `true` |
+| `WAVE_MAX_CONCURRENCY` | DAG wave width | `4` |
 
-## Структура
+## Structure
 
 ```
 orchestrator/
   main.py        FastAPI Gateway
   worker.py      Temporal Worker
-  workflows.py   EnterpriseHITLWorkflow (волновой DAG-исполнитель)
+  workflows.py   EnterpriseHITLWorkflow (wave-based DAG executor)
   activities.py  execute_openhands_phase / prepare_workspace /
                  cleanup_workspace / git_push_and_create_pr
 ui/
@@ -163,15 +165,22 @@ docker/
   openhands-entrypoint.sh
 docker-compose.yml
 examples/
-  self-update.json            JSON-план «самообновление репозитория»
-  notification-service.json   JSON-план «Notification Service»
+  self-update.json            JSON plan "repository self-update"
+  notification-service.json   JSON plan "Notification Service"
 docs/
-  openhands-setup.md          Настройка OpenHands и LLM-провайдеров
+  openhands-setup.md          OpenHands and LLM provider setup
+  openhands-setup.ru.md       Same in Russian
   examples/
-    self-update.md            Описание примера самообновления
-    notification-service.md   Сквозной туториал (ChatGPT → DAG → запуск)
+    self-update.md            Self-update example walkthrough
+    self-update.ru.md         Same in Russian
+    notification-service.md   End-to-end tutorial (ChatGPT → DAG → run)
+    notification-service.ru.md  Same in Russian
   blueprints/
-    tree-refactoring-blueprint.md  Blueprint рефакторинга дерева
-AGENTS.md                     Спецификация JSON-планов для LLM-архитектора
+    tree-refactoring-blueprint.md     Tree refactoring blueprint
+    tree-refactoring-blueprint.ru.md  Same in Russian
+AGENTS.md                     JSON plan specification for an LLM architect
+AGENTS.ru.md                  Same in Russian
+README.md                     Main README (English)
+README.ru.md                  Main README (Russian)
 LICENSE                       MIT
 ```

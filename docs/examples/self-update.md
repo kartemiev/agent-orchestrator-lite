@@ -1,28 +1,31 @@
-# Пример спринта: самообновление репозитория
+ English | [Русский](self-update.ru.md)
 
-В этом примере оркестратор `agent-orchestrator-lite` обновляет **свой собственный
-код**. Готовый JSON-план лежит в файле [`self-update.json`](../../examples/self-update.json) —
-его можно вставить в Streamlit UI или отправить напрямую на `POST /api/v1/plan/direct`.
+# Example sprint: repository self-update
 
-## Концепция
+In this example the `agent-orchestrator-lite` orchestrator updates **its own
+code**. The ready-made JSON plan lives in the file
+[`self-update.json`](../../examples/self-update.json) — you can paste it into the
+Streamlit UI or send it directly to `POST /api/v1/plan/direct`.
 
-Агент OpenHands под управлением Temporal-воркфлоу получает DAG-план из 5 задач,
-разбитых на 4 волны. Каждая задача исполняется в изолированном workspace
-`/app/workspace/runs/{workflow_id}`, а параллелизм задаётся исключительно полем
-`depends_on`: задачи с одинаковым набором зависимостей запускаются одной волной
-через `asyncio.gather`.
+## Concept
 
-Волновой исполнитель работает строго по переданному плану:
-- сначала стартует только `task_0_git_sync` (Wave 1);
-- после его успеха параллельно запускаются `task_a_backend_docs` и
-  `task_b_ui_statuses` (Wave 2);
-- после обоих — `task_2_tests` (Wave 3);
-- и только после успешных тестов — `task_3_deliver` (Wave 4).
+The OpenHands agent, driven by the Temporal workflow, receives a DAG plan of 5
+tasks split into 4 waves. Each task runs in an isolated workspace
+`/app/workspace/runs/{workflow_id}`, and parallelism is defined exclusively by
+the `depends_on` field: tasks with the same set of dependencies are launched in
+one wave via `asyncio.gather`.
 
-Если какая-то задача падает, зависящие от неё задачи пропускаются (fault
-isolation), а упавшая фиксируется в сводке workflow.
+The wave executor works strictly according to the submitted plan:
+- first only `task_0_git_sync` starts (Wave 1);
+- after it succeeds, `task_a_backend_docs` and `task_b_ui_statuses` start in
+  parallel (Wave 2);
+- after both of them — `task_2_tests` (Wave 3);
+- and only after the tests pass — `task_3_deliver` (Wave 4).
 
-## DAG-граф по волнам
+If a task fails, the tasks depending on it are skipped (fault isolation), and the
+failed one is recorded in the workflow summary.
+
+## DAG graph by waves
 
 ```
 Wave 1  (Init)             task_0_git_sync
@@ -37,70 +40,72 @@ Wave 4  (Delivery)          task_3_deliver
 
 ### Wave 1 — Init
 
-| Поле | Значение |
+| Field | Value |
 |---|---|
 | `id` | `task_0_git_sync` |
 | `depends_on` | `[]` |
-| Суть | Клонирует/обновляет `https://github.com/kartemiev/agent-orchestrator-lite` в workspace и готовит окружение. |
+| Essence | Clones/updates `https://github.com/kartemiev/agent-orchestrator-lite` into the workspace and prepares the environment. |
 
-Первый шаг всегда выполняется в одиночку: без склонированного репозитория
-последующие задачи-правки упали бы на пустом workspace.
+The first step always runs alone: without a cloned repository the subsequent
+edit tasks would fail on an empty workspace.
 
-### Wave 2 — Параллельная разработка
+### Wave 2 — Parallel development
 
-Две независимые задачи делят один родитель `task_0_git_sync` и поэтому
-исполняются **одновременно** одной волной.
+Two independent tasks share the same parent `task_0_git_sync` and therefore run
+**simultaneously** in one wave.
 
-| `id` | Задача | Суть |
+| `id` | Task | Essence |
 |---|---|---|
-| `task_a_backend_docs` | Backend/Docs | Добавляет `GET /health/details` в `orchestrator/main.py` и описывает его в `README.md`. |
-| `task_b_ui_statuses` | Frontend/UI | Улучшает отображение статуса workflow и сводки задач в `ui/app.py`. |
+| `task_a_backend_docs` | Backend/Docs | Adds `GET /health/details` to `orchestrator/main.py` and documents it in `README.md`. |
+| `task_b_ui_statuses` | Frontend/UI | Improves the rendering of the workflow status and task summary in `ui/app.py`. |
 
-### Wave 3 — Тесты & Проверка
+### Wave 3 — Tests & Verification
 
-| Поле | Значение |
+| Field | Value |
 |---|---|
 | `id` | `task_2_tests` |
 | `depends_on` | `["task_a_backend_docs", "task_b_ui_statuses"]` |
-| Суть | Прогоняет `python -m py_compile` по всем Python-файлам и чинит найденные проблемы. |
+| Essence | Runs `python -m py_compile` over all Python files and fixes the issues it finds. |
 
-Зависит от **обеих** задач Wave 2 — проверка стартует только когда закончены
-и бэкенд, и UI.
+Depends on **both** Wave 2 tasks — verification starts only when both the backend
+and the UI are finished.
 
-### Wave 4 — Доставка
+### Wave 4 — Delivery
 
-| Поле | Значение |
+| Field | Value |
 |---|---|
 | `id` | `task_3_deliver` |
 | `depends_on` | `["task_2_tests"]` |
-| Суть | Коммитит изменения, пушит ветку `feature/self-update` и создаёт Pull Request в `main`. |
+| Essence | Commits the changes, pushes the `feature/self-update` branch and opens a Pull Request into `main`. |
 
-Доставка идёт последней и только при зелёных тестах.
+Delivery comes last and only with green tests.
 
-> **Примечание про встроенную доставку.** Помимо явного шага `task_3_deliver`,
-> воркер оркестратора в конце любого workflow дополнительно вызывает активность
-> `git_push_and_create_pr` — это страховка от потери незакоммиченных/неотправленных
-> изменений. Если явный шаг доставки уже создал PR, встроенная активность может
-> создать ещё один PR на ветке `feature/{workflow_id}`. Для чистой доставки можно
-> либо убрать `task_3_deliver` и положиться на встроенный механизм, либо оставить
-> явный шаг и вручную закрыть дублирующий PR.
+> **A note on the built-in delivery.** Besides the explicit `task_3_deliver` step,
+> at the end of any workflow the orchestrator worker additionally calls the
+> `git_push_and_create_pr` activity — a safety net against losing
+> uncommitted/unpushed changes. If the explicit delivery step has already created
+> a PR, the built-in activity may create one more PR on the `feature/{workflow_id}`
+> branch. For a clean delivery you can either drop `task_3_deliver` and rely on
+> the built-in mechanism, or keep the explicit step and close the duplicate PR
+> manually.
 
-## Запуск
+## Running
 
-### Вариант 1 — Streamlit UI
+### Option 1 — Streamlit UI
 
-1. Открой `http://localhost:8501`.
-2. Открой файл [`self-update.json`](../../examples/self-update.json) и скопируй его
-   содержимое целиком.
-3. Вставь JSON в поле «**Готовый JSON-план**».
-4. Отметь чекбокс «**⚡ Auto-approve**» — план утвердится автоматически, и
-   Human-in-the-Loop гейт будет пропущен.
-5. Нажми «**⚡ Запустить с готовым JSON-планом**».
-6. В панели «**Мониторинг и управление workflow**» введи появившийся
-   `workflow_id` и наблюдай за статусом (при выключенном Auto-approve там же
-   появятся кнопки `APPROVE & DISPATCH` / `Отклонить запуск`).
+1. Open `http://localhost:8501`.
+2. Open the file [`self-update.json`](../../examples/self-update.json) and copy its
+   content in full.
+3. Paste the JSON into the "**Готовый JSON-план**" ("Ready-made JSON plan") field.
+4. Tick the "**⚡ Auto-approve (запустить без ручного подтверждения)**" checkbox —
+   the plan is approved automatically and the Human-in-the-Loop gate is skipped.
+5. Click "**⚡ Запустить с готовым JSON-планом**" ("Run with the ready-made JSON plan").
+6. In the "**Мониторинг и управление workflow**" ("Workflow monitoring and
+   management") panel enter the `workflow_id` that appears and watch the status
+   (with Auto-approve off, the `APPROVE & DISPATCH` and "Отклонить запуск"
+   ("Reject run") buttons appear there as well).
 
-### Вариант 2 — cURL / REST API
+### Option 2 — cURL / REST API
 
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
@@ -108,7 +113,7 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
   -d @examples/self-update.json
 ```
 
-Ожидаемый ответ:
+Expected response:
 
 ```json
 {
@@ -120,7 +125,7 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 }
 ```
 
-Запуск сразу без ручного подтверждения (Auto-approve):
+Run immediately without manual confirmation (Auto-approve):
 
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
@@ -128,21 +133,21 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
   -d "$(python3 -c 'import json; d=json.load(open("examples/self-update.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
 ```
 
-Либо вручную обернуть план в ключ `raw_json`:
+Or wrap the plan into the `raw_json` key by hand:
 
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
   -H "Content-Type: application/json" \
-  -d '{"raw_json": "<содержимое examples/self-update.json одной строкой>", "auto_approve": true}'
+  -d '{"raw_json": "<content of examples/self-update.json on a single line>", "auto_approve": true}'
 ```
 
-После запуска за прогрессом можно следить в Temporal UI (`http://localhost:8233`)
-или через `GET /api/v1/...`/клиент Temporal по `workflow_id`.
+After the run you can follow the progress in the Temporal UI (`http://localhost:8233`)
+or via `GET /api/v1/...`/the Temporal client by `workflow_id`.
 
-## Чего ожидать в результате
+## What to expect as a result
 
-- В репозитории `kartemiev/agent-orchestrator-lite` появится Pull Request из
-  ветки `feature/self-update` в `main` с изменениями `orchestrator/main.py`,
-  `ui/app.py` и `README.md`.
-- В Temporal UI будет видна история воркфлоу: 4 волны, параллельное исполнение
-  Wave 2, изоляция сбоев между задачами.
+- A Pull Request from the `feature/self-update` branch into `main` with changes to
+  `orchestrator/main.py`, `ui/app.py` and `README.md` will appear in the
+  `kartemiev/agent-orchestrator-lite` repository.
+- The Temporal UI will show the workflow history: 4 waves, parallel execution of
+  Wave 2, fault isolation between tasks.

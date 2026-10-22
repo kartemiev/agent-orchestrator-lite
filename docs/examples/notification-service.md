@@ -1,82 +1,84 @@
-# Сквозной туториал: разработка фичи с ChatGPT + agent-orchestrator-lite
+ English | [Русский](notification-service.ru.md)
 
-Полный сценарий «от и до»: как с помощью внешнего LLM-чата (ChatGPT / Claude)
-спроектировать DAG-план для фичи и выполнить его в `agent-orchestrator-lite`
-через OpenHands + Temporal.
+# End-to-end tutorial: building a feature with ChatGPT + agent-orchestrator-lite
 
-Готовый JSON-план из этого сценария лежит в файле
-[`notification-service.json`](../../examples/notification-service.json) — его можно запустить
-напрямую.
+A complete start-to-finish scenario: how to use an external LLM chat (ChatGPT /
+Claude) to design a DAG plan for a feature and execute it in
+`agent-orchestrator-lite` via OpenHands + Temporal.
 
----
-
-## Сценарий: система уведомлений (Notification Service)
-
-Добавляем в абстрактное Web-приложение сервис уведомлений по **WebSocket** и
-**Email**. Фича затрагивает три слоя:
-
-- **БД** — новая таблица `notifications`;
-- **Сервисный слой** — модуль отправки Email;
-- **API/Transport** — WebSocket-эндпоинт + интеграция Email и БД.
+The ready-made JSON plan from this scenario lives in the file
+[`notification-service.json`](../../examples/notification-service.json) — you can
+run it directly.
 
 ---
 
-## Шаг 1. Подготовка документации проекта
+## Scenario: a notification system (Notification Service)
 
-Разработчик берёт четыре файла из своего проекта и из оркестратора:
+We add a notification service over **WebSocket** and **Email** to an abstract web
+application. The feature touches three layers:
 
-| Файл | Что содержит |
+- **DB** — a new `notifications` table;
+- **Service layer** — an Email sending module;
+- **API/Transport** — a WebSocket endpoint + Email and DB integration.
+
+---
+
+## Step 1. Preparing the project documentation
+
+The developer takes four files from their project and from the orchestrator:
+
+| File | What it contains |
 |---|---|
-| `ARCHITECTURE.md` | Архитектура приложения: слои, модули, точки расширения. |
-| `API_SPEC.md` | Спецификация REST API (OpenAPI) и существующие эндпоинты. |
-| `DATABASE.md` | Схема БД: модели SQLAlchemy / Prisma, миграции. |
-| `AGENTS.md` | Правила построения DAG-графов для оркестратора (волны, `depends_on`, изоляция workspaces, ограничения OpenHands). |
+| `ARCHITECTURE.md` | Application architecture: layers, modules, extension points. |
+| `API_SPEC.md` | REST API (OpenAPI) specification and the existing endpoints. |
+| `DATABASE.md` | DB schema: SQLAlchemy / Prisma models, migrations. |
+| `AGENTS.md` | Rules for building DAG graphs for the orchestrator (waves, `depends_on`, workspace isolation, OpenHands constraints). |
 
-> В `agent-orchestrator-lite` правила построения DAG-графов описаны в
-> [`README.md`](../../README.md) → раздел «Формат JSON-плана» и в
-> [`self-update.md`](self-update.md) (в полной версии проекта они живут
-> в `AGENTS.md`). Именно их нужно приложить к запросу, чтобы LLM сгенерировал
-> план в правильном формате.
+> In `agent-orchestrator-lite` the DAG-building rules are described in
+> [`README.md`](../../README.md) → the "JSON plan format" section and in
+> [`self-update.md`](self-update.md) (in the full version of the project they live
+> in `AGENTS.md`). These are exactly the rules to attach to the request so that
+> the LLM generates a plan in the right format.
 
 ---
 
-## Шаг 2. Запрос в ChatGPT / Claude
+## Step 2. The request to ChatGPT / Claude
 
-Копируем промпт ниже вместе с прикреплёнными `ARCHITECTURE.md`, `API_SPEC.md`,
-`DATABASE.md` и правилами DAG-графов:
+We copy the prompt below together with the attached `ARCHITECTURE.md`, `API_SPEC.md`,
+`DATABASE.md` and the DAG rules:
 
 ```text
-Я хочу добавить в проект сервис уведомлений по WebSocket и Email.
+I want to add a notification service over WebSocket and Email to the project.
 
-Изучи прикреплённые ARCHITECTURE.md, API_SPEC.md, DATABASE.md и правила
-построения DAG-графов из AGENTS.md.
+Study the attached ARCHITECTURE.md, API_SPEC.md, DATABASE.md and the DAG-building
+rules from AGENTS.md.
 
-Спроектируй фичу и выдай готовый ExecutionPlan в формате ВАЛИДНОГО JSON
-(без markdown-фенсов), пригодный для отправки в agent-orchestrator-lite.
+Design the feature and produce a ready-made ExecutionPlan in VALID JSON format
+(no markdown fences), suitable for sending to agent-orchestrator-lite.
 
-Требования к плану:
-1. Первый шаг — git-sync: клонирование/обновление репозитория
+Plan requirements:
+1. The first step — git-sync: clone/update the repository
    https://github.com/your-org/your-web-app (depends_on: []).
-2. Разбей работу на 4 волны:
-   - Wave 1 (Init): клонирование репозитория.
-   - Wave 2 (параллельно):
-       * Задача А — миграция БД + модель Notification;
-       * Задача Б — выделенный модуль Email-отправки.
-   - Wave 3 (Integration & API): WebSocket-эндпоинт /ws/notifications и
-     интеграция с Email + БД.
-   - Wave 4 (Tests & Delivery): pytest-тесты, проверка сборки, commit,
-     push в ветку feature/notification-service и создание Pull Request.
-3. depends_on — строго по DAG: только на реально существующие id, без циклов.
-   Задачи с одинаковым набором depends_on исполняются одной волной (параллельно).
-4. Все шаги используют engine: "openhands".
-5. Верни только JSON-объект с ключами "graph_name", "reasoning" и "tasks".
+2. Split the work into 4 waves:
+   - Wave 1 (Init): clone the repository.
+   - Wave 2 (in parallel):
+       * Task A — DB migration + the Notification model;
+       * Task B — a dedicated Email sending module.
+   - Wave 3 (Integration & API): the /ws/notifications WebSocket endpoint and
+     integration with Email + DB.
+   - Wave 4 (Tests & Delivery): pytest tests, build verification, commit,
+     push to the feature/notification-service branch and open a Pull Request.
+3. depends_on — strictly a DAG: only references to ids that actually exist, no cycles.
+   Tasks with the same set of depends_on are executed in one wave (in parallel).
+4. All steps use engine: "openhands".
+5. Return only a JSON object with the keys "graph_name", "reasoning" and "tasks".
 ```
 
 ---
 
-## Шаг 3. Ответ ChatGPT — готовый JSON-план
+## Step 3. ChatGPT's answer — the ready-made JSON plan
 
-Реалистичный ответ модели (тот же JSON, что и в
+A realistic model answer (the same JSON as in
 [`notification-service.json`](../../examples/notification-service.json)):
 
 ```json
@@ -133,7 +135,7 @@
 }
 ```
 
-### Как читать этот DAG
+### How to read this DAG
 
 ```
 Wave 1  (Init)             task_0_git_sync
@@ -146,32 +148,34 @@ Wave 3  (API)                task_2_ws_integration
 Wave 4  (Tests+Delivery)   task_3_tests_and_deliver
 ```
 
-- `task_0_git_sync` выполняется первым и в одиночку — без клона правки упали бы
-  на пустом workspace.
-- `task_a_db_migration` и `task_b_email_module` не зависят друг от друга →
-  запускаются **параллельно** одной волной через `asyncio.gather`.
-- `task_2_ws_integration` зависит от обеих задач Wave 2 → ждёт их завершения.
-- `task_3_tests_and_deliver` стартует только после успешной интеграции.
+- `task_0_git_sync` runs first and alone — without the clone, the edits would fail
+  on an empty workspace.
+- `task_a_db_migration` and `task_b_email_module` do not depend on each other →
+  they are launched **in parallel** in one wave via `asyncio.gather`.
+- `task_2_ws_integration` depends on both Wave 2 tasks → it waits for them to finish.
+- `task_3_tests_and_deliver` starts only after a successful integration.
 
 ---
 
-## Шаг 4. Запуск в agent-orchestrator-lite
+## Step 4. Running in agent-orchestrator-lite
 
-### Вариант 1 — Streamlit UI
+### Option 1 — Streamlit UI
 
-1. Открой Streamlit Dashboard: <http://localhost:8501>.
-2. Вставь полученный из ChatGPT JSON в поле «**Готовый JSON-план**»
-   (или скопируй содержимое [`notification-service.json`](../../examples/notification-service.json)).
-3. Отметь чекбокс «**⚡ Auto-approve**», чтобы пропустить ручное подтверждение
-   (либо оставь выключенным — тогда план сначала нужно будет утвердить вручную
-   в панели мониторинга).
-4. Нажми «**⚡ Запустить с готовым JSON-планом**».
-5. Наблюдай за выполнением волн DAG в панели «Мониторинг и управление workflow»:
-   введи появившийся `workflow_id` и следи за статусом Temporal Workflow.
-6. По завершении получи ссылку на готовый Pull Request на GitHub
-   (ветка `feature/notification-service` → `main`).
+1. Open the Streamlit Dashboard: <http://localhost:8501>.
+2. Paste the JSON you got from ChatGPT into the "**Готовый JSON-план**"
+   ("Ready-made JSON plan") field (or copy the content of
+   [`notification-service.json`](../../examples/notification-service.json)).
+3. Tick the "**⚡ Auto-approve (запустить без ручного подтверждения)**" checkbox to
+   skip manual confirmation (or leave it off — then the plan has to be approved
+   manually in the monitoring panel first).
+4. Click "**⚡ Запустить с готовым JSON-планом**" ("Run with the ready-made JSON plan").
+5. Watch the execution of the DAG waves in the "**Мониторинг и управление
+   workflow**" ("Workflow monitoring and management") panel: enter the
+   `workflow_id` that appears and follow the status of the Temporal Workflow.
+6. When it finishes, you get a link to the ready-made Pull Request on GitHub
+   (branch `feature/notification-service` → `main`).
 
-### Вариант 2 — cURL / REST API
+### Option 2 — cURL / REST API
 
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
@@ -179,7 +183,7 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
   -d @examples/notification-service.json
 ```
 
-Сразу без ручного подтверждения:
+Immediately, without manual confirmation:
 
 ```bash
 curl -X POST http://localhost:8085/api/v1/plan/direct \
@@ -187,11 +191,10 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
   -d "$(python3 -c 'import json; d=json.load(open("examples/notification-service.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
 ```
 
-Прогресс — в Temporal UI (<http://localhost:8233>) по `workflow_id` из ответа
-API (`{"status": "triggered", "workflow_id": "direct-plan-..."}`).
+Progress — in the Temporal UI (<http://localhost:8233>) by the `workflow_id` from
+the API response (`{"status": "triggered", "workflow_id": "direct-plan-..."}`).
 
-> **Про репозиторий-заглушку.** В плане используется
-> `https://github.com/your-org/your-web-app` — замени его на URL своего проекта
-> перед запуском (в промпте `task_0_git_sync` и в поле `graph_name` при желании).
-
-
+> **About the stub repository.** The plan uses
+> `https://github.com/your-org/your-web-app` — replace it with the URL of your own
+> project before running (in the `task_0_git_sync` prompt and, optionally, in the
+> `graph_name` field).
