@@ -63,6 +63,9 @@ services:
     image: ghcr.io/openhands/agent-canvas:1.10.0
     container_name: openhands
     restart: unless-stopped
+    # Жёсткий лимит RAM (cgroup v2); memswap_limit == mem_limit → без свопа.
+    mem_limit: ${OPENHANDS_MEM_LIMIT:-4g}
+    memswap_limit: ${OPENHANDS_MEM_LIMIT:-4g}
     entrypoint:
       - /bin/bash
       - /usr/local/bin/openhands-entrypoint.sh
@@ -106,6 +109,9 @@ services:
       dockerfile: Dockerfile
     container_name: agent-orchestrator-lite
     restart: unless-stopped
+    # Жёсткий лимит RAM (cgroup v2); memswap_limit == mem_limit → без свопа.
+    mem_limit: ${ORCHESTRATOR_MEM_LIMIT:-2g}
+    memswap_limit: ${ORCHESTRATOR_MEM_LIMIT:-2g}
     ports:
       - "${BIND_IP:-127.0.0.1}:${ORCHESTRATOR_GATEWAY_PORT:-8085}:8000"
     environment:
