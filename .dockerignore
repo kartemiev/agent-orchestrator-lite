@@ -1,0 +1,35 @@
+# Секреты и переменные окружения (НЕ попадают в build context!)
+.env
+.env.*
+*.env
+
+# VCS / CI
+.git
+.gitignore
+.gitattributes
+
+# Python-кэш и виртуальные окружения
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Рабочие пространства, бэкапы и БД (огромные, не нужны в образе UI)
+workspace/
+backup/
+temporal_db_data/
+*.db
+*.sqlite
+*.log
+
+# IDE и временное
+.vscode/
+.idea/
+*.swp
+.DS_Store
+.docker/

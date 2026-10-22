@@ -1,0 +1,51 @@
+{
+  "graph_name": "Notification Service: WebSocket + Email",
+  "reasoning": "Добавляем сервис уведомлений: миграция БД и модель Notification, выделенный модуль Email-отправки, WebSocket-эндпоинт с интеграцией, pytest-тесты и доставка через Pull Request.",
+  "tasks": [
+    {
+      "id": "task_0_git_sync",
+      "title": "Git Sync: clone репозиторий",
+      "prompt": "Склонируй или обнови (git pull) репозиторий https://github.com/your-org/your-web-app в текущий рабочий каталог и подготовь рабочее окружение.",
+      "priority": 1,
+      "depends_on": [],
+      "model": "deepseek-v4-flash",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_a_db_migration",
+      "title": "DB: миграция и модель Notification",
+      "prompt": "Создай миграцию базы данных и модель Notification (id, user_id, type, payload, read, created_at). Используй существующий ORM проекта (SQLAlchemy/Prisma) и обнови DATABASE.md описанием новой таблицы.",
+      "priority": 2,
+      "depends_on": ["task_0_git_sync"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_b_email_module",
+      "title": "Email: выделенный модуль отправки",
+      "prompt": "Создай выделенный модуль email-отправки: функция send_email(to, subject, body) через SMTP/API-провайдер, конфигурация через переменные окружения и простые шаблоны писем. Обнови ARCHITECTURE.md описанием модуля.",
+      "priority": 2,
+      "depends_on": ["task_0_git_sync"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_2_ws_integration",
+      "title": "API: WebSocket-эндпоинт и интеграция",
+      "prompt": "Добавь WebSocket-эндпоинт /ws/notifications, доставляющий уведомления подписанным клиентам. Интегрируй его с моделью Notification и модулем Email: при создании уведомления одновременно отправляй WebSocket-сообщение и Email. Обнови API_SPEC.md описанием нового эндпоинта.",
+      "priority": 3,
+      "depends_on": ["task_a_db_migration", "task_b_email_module"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_3_tests_and_deliver",
+      "title": "Tests & Delivery",
+      "prompt": "Напиши pytest-тесты для модели Notification, модуля Email и WebSocket-эндпоинта. Запусти python -m py_compile по изменённым файлам и pytest; исправь найденные проблемы. Затем закоммить изменения понятным сообщением, запушь ветку feature/notification-service и создай Pull Request в main с описанием фичи.",
+      "priority": 4,
+      "depends_on": ["task_2_ws_integration"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    }
+  ]
+}

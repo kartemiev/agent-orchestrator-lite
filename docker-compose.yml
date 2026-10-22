@@ -1,0 +1,183 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# agent-orchestrator-lite — облегчённый базовый контур исполнения.
+#
+# Сервисы (только базовый контур):
+#   temporal-db        — PostgreSQL 15 (persistence Temporal)
+#   temporal           — Temporal Server (auto-setup)
+#   openhands          — OpenHands / agent-canvas (исполнитель фаз)
+#   agent-orchestrator — FastAPI Gateway + Temporal Worker
+#   agent-ui           — Streamlit Dashboard (ввод JSON-плана + мониторинг)
+#   temporal-ui        — Web UI Temporal (опционально)
+#
+# Запуск:
+#   cp .env.example .env
+#   docker compose up -d
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  temporal-db:
+    image: postgres:15-alpine
+    container_name: agent-temporal-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal_secret_password
+      POSTGRES_DB: temporal
+    volumes:
+      - temporal_db_data:/var/lib/postgresql/data
+    networks:
+      - agent-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal -d temporal"]
+      interval: 60s
+      timeout: 5s
+      retries: 5
+
+  temporal:
+    image: temporalio/auto-setup:1.25.1
+    container_name: agent-temporal-server
+    restart: unless-stopped
+    ports:
+      - "${BIND_IP:-127.0.0.1}:7233:7233"   # gRPC API
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal_secret_password
+      - POSTGRES_SEEDS=temporal-db
+    networks:
+      - agent-net
+    depends_on:
+      temporal-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "tctl --address temporal:7233 cluster health >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 8s
+      retries: 10
+      start_period: 20s
+
+  openhands:
+    image: ghcr.io/openhands/agent-canvas:1.10.0
+    container_name: openhands
+    restart: unless-stopped
+    entrypoint:
+      - /bin/bash
+      - /usr/local/bin/openhands-entrypoint.sh
+    ports:
+      - "${BIND_IP:-127.0.0.1}:8000:8000"
+    environment:
+      - WORKSPACE_BASE=/app/workspace
+      - WORKSPACE_DIR=/app/workspace
+      - SERVE_WITHOUT_AUTH=true
+      - DISABLE_AUTH=true
+      - AGENT_CANVAS_BASE_PATH=/canvas
+      - AGENT_CANVAS_API_PREFIX=/api
+      - CORS_ALLOW_ORIGINS=*
+      - ALLOWED_HOSTS=*
+      - OPENHANDS_API_KEY=dev
+      - LOCAL_BACKEND_API_KEY=${OPENHANDS_SESSION_API_KEY:-dev}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_API_URL=${LLM_API_URL:-https://api.deepseek.com}
+      - LLM_MODEL=${LLM_MODEL:-deepseek-v4-pro}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GIT_CONFIG_COUNT=1
+      - GIT_CONFIG_KEY_0=safe.directory
+      - GIT_CONFIG_VALUE_0=*
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/openhands/config:/home/openhands/.openhands
+      - ./workspace:/app/workspace
+      - ./docker/openhands-entrypoint.sh:/usr/local/bin/openhands-entrypoint.sh:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - agent-net
+
+  agent-orchestrator:
+    build:
+      context: ./orchestrator
+      dockerfile: Dockerfile
+    container_name: agent-orchestrator
+    restart: unless-stopped
+    ports:
+      - "${BIND_IP:-127.0.0.1}:8085:8000"
+    environment:
+      - TEMPORAL_HOST=temporal:7233
+      - OPENHANDS_API_URL=http://openhands:8000
+      - OPENHANDS_API_KEY=${OPENHANDS_SESSION_API_KEY:-dev}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - LLM_API_URL=${LLM_API_URL:-https://api.deepseek.com}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-deepseek-v4-pro}
+      - CLEANUP_WORKSPACE=${CLEANUP_WORKSPACE:-true}
+      - WAVE_MAX_CONCURRENCY=${WAVE_MAX_CONCURRENCY:-4}
+      - TEMPORAL_MAX_CACHED_WORKFLOWS=${TEMPORAL_MAX_CACHED_WORKFLOWS:-200}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./workspace:/app/workspace
+    command: sh -c "umask 000; python worker.py & uvicorn main:app --host 0.0.0.0 --port 8000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - agent-net
+    depends_on:
+      temporal:
+        condition: service_healthy
+
+  agent-ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+    container_name: agent-ui
+    restart: unless-stopped
+    ports:
+      - "${BIND_IP:-127.0.0.1}:8501:8501"
+    environment:
+      - TEMPORAL_HOST=temporal:7233
+      - GATEWAY_URL=http://agent-orchestrator:8000
+    volumes:
+      - ./workspace:/app/workspace
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - agent-net
+    depends_on:
+      temporal:
+        condition: service_healthy
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    container_name: agent-temporal-ui
+    restart: unless-stopped
+    ports:
+      - "${BIND_IP:-127.0.0.1}:8233:8080"
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_GRPC_ENDPOINT=temporal:7233
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - agent-net
+    depends_on:
+      temporal:
+        condition: service_healthy
+
+networks:
+  agent-net:
+    driver: bridge
+
+volumes:
+  temporal_db_data:

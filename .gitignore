@@ -1,0 +1,47 @@
+# Секреты и переменные окружения (КРИТИЧНО!)
+.env
+.env.local
+*.env
+
+# Данные СУБД Temporal
+temporal_db_data/
+*.db
+*.sqlite
+
+# Python кэш и виртуальные окружения
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.pytest_cache/
+
+# Docker и логи
+*.log
+.docker/
+
+# IDE и редакторы
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
+
+# Рабочее пространство OpenHands (вложенные git-репозитории)
+workspace/
+!workspace/.gitkeep
+
+# Binary packages & archives
+*.deb
+*.rpm
+*.tar.gz
+*.tgz
+*.zip
+*.iso
+*.bin
+*.exe
