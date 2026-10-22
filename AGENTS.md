@@ -170,3 +170,8 @@ container via `docker exec`; `logs` reads `docker logs` directly.
    exact failing step before touching files.
 4. **Never commit secrets.** The CLI reads `.env` (LLM keys, `GITHUB_TOKEN`) from
    the environment; do not print or commit them.
+5. **Never hardcode service URIs.** Service ports (Gateway, Temporal, Agent
+   Canvas/OpenHands, Streamlit) may be non-standard and are set via `.env`
+   (`ORCHESTRATOR_GATEWAY_PORT`, `TEMPORAL_PORT`, `AGENT_CANVAS_PORT`,
+   `STREAMLIT_PORT`). Read the ports from `.env` or use `scripts/agent-cli.py`
+   (which resolves them automatically) instead of hardcoding URIs.

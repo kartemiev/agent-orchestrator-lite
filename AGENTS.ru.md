@@ -171,4 +171,9 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
    чтобы найти точный упавший шаг до изменения файлов.
 4. **Не коммить секреты.** CLI читает `.env` (ключи LLM, `GITHUB_TOKEN`) из
    окружения; не выводи и не коммить их.
+5. **Не хардкодь URI сервисов.** Порты сервисов (Gateway, Temporal, Agent
+   Canvas/OpenHands, Streamlit) могут быть нестандартными и задаются через `.env`
+   (`ORCHESTRATOR_GATEWAY_PORT`, `TEMPORAL_PORT`, `AGENT_CANVAS_PORT`,
+   `STREAMLIT_PORT`). Считывай порты из `.env` или используй `scripts/agent-cli.py`
+   (он подтягивает их автоматически) вместо захардкоженных URI.
 

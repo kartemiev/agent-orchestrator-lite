@@ -172,6 +172,12 @@ flowchart LR
     OH -->|"clone → push → PR"| G["GitHub"]
 ```
 
+> Host-facing ports (`8085`, `8501`, `8000`, `7233`) are mapped in
+> `docker-compose.yml` from `.env` variables (`ORCHESTRATOR_GATEWAY_PORT`,
+> `STREAMLIT_PORT`, `AGENT_CANVAS_PORT`, `TEMPORAL_PORT`); inside the Docker
+> network the components talk by service name (`agent-ui:8501`,
+> `agent-orchestrator:8000`, `openhands:8000`, `temporal:7233`).
+
 ## Screenshots
 
 > **Note:** these are placeholders. Drop the real images into `docs/assets/`
@@ -210,14 +216,16 @@ cp .env.example .env        # fill in LLM_API_KEY and GITHUB_TOKEN
 docker compose up -d
 ```
 
-Once everything is up:
+Once everything is up (host ports are read from `.env`, defaults shown in
+brackets; `BIND_IP` selects the interface, default `127.0.0.1`):
 
-| Service | Address |
-|---|---|
-| Gateway API | http://127.0.0.1:8085 (health: `/health`) |
-| Streamlit UI | http://127.0.0.1:8501 |
-| Temporal UI | http://127.0.0.1:8233 |
-| OpenHands | http://127.0.0.1:8000 |
+| Service | Address | `.env` variable |
+|---|---|---|
+| Gateway API | `http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}` (health: `/health`) | `ORCHESTRATOR_GATEWAY_PORT` |
+| Streamlit UI | `http://127.0.0.1:${STREAMLIT_PORT:-8501}` | `STREAMLIT_PORT` |
+| Temporal UI | `http://127.0.0.1:8233` | — |
+| OpenHands | `http://127.0.0.1:${AGENT_CANVAS_PORT:-8000}` | `AGENT_CANVAS_PORT` |
+| Temporal (gRPC) | `${BIND_IP:-127.0.0.1}:${TEMPORAL_PORT:-7233}` | `TEMPORAL_PORT` |
 
 Shutdown: `docker compose down`.
 
@@ -250,7 +258,7 @@ Russian version: [`securing-with-npm-and-cloudflare.ru.md`](docs/deployment/secu
 ### Via the REST API
 
 ```bash
-curl -X POST http://127.0.0.1:8085/api/v1/plan/direct \
+curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H 'Content-Type: application/json' \
   -d '{"raw_json": "{\"tasks\": [{\"id\": \"step_1\", \"title\": \"Hello\", \"prompt\": \"Create a hello.txt file containing hi\", \"depends_on\": [], \"engine\": \"openhands\"}]}", "auto_approve": true}'
 ```
@@ -368,7 +376,7 @@ is in [`self-update.md`](./docs/examples/self-update.md).
 Short run via cURL (the plan is taken from the file directly):
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://localhost:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d @examples/self-update.json
 ```
@@ -376,7 +384,7 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 The same with Auto-approve (no manual confirmation):
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://localhost:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d "$(python3 -c 'import json; d=json.load(open("examples/self-update.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
 ```
@@ -397,6 +405,10 @@ See [`.env.example`](./.env.example). Detailed configuration of LLM providers
 | `GITHUB_TOKEN` | For cloning and creating PRs | — |
 | `GIT_TERMINAL_PROMPT` | Disable interactive git prompts (prevents agent hangs) | `0` |
 | `BIND_IP` | IP used to publish ports | `127.0.0.1` |
+| `ORCHESTRATOR_GATEWAY_PORT` | Host port for the Gateway API | `8085` |
+| `STREAMLIT_PORT` | Host port for the Streamlit UI | `8501` |
+| `AGENT_CANVAS_PORT` | Host port for OpenHands / agent-canvas | `8000` |
+| `TEMPORAL_PORT` | Host port for the Temporal gRPC frontend | `7233` |
 | `CLEANUP_WORKSPACE` | Remove the workspace after a workflow | `true` |
 | `WAVE_MAX_CONCURRENCY` | DAG wave width | `4` |
 

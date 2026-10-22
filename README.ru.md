@@ -175,6 +175,12 @@ flowchart LR
     OH -->|"clone → push → PR"| G["GitHub"]
 ```
 
+> Хостовые порты (`8085`, `8501`, `8000`, `7233`) мапятся в
+> `docker-compose.yml` из переменных `.env` (`ORCHESTRATOR_GATEWAY_PORT`,
+> `STREAMLIT_PORT`, `AGENT_CANVAS_PORT`, `TEMPORAL_PORT`); внутри Docker-сети
+> компоненты общаются по именам сервисов (`agent-ui:8501`,
+> `agent-orchestrator:8000`, `openhands:8000`, `temporal:7233`).
+
 ## Скриншоты
 
 > **Примечание:** это плейсхолдеры. Положите реальные изображения в
@@ -213,14 +219,16 @@ cp .env.example .env        # заполните LLM_API_KEY и GITHUB_TOKEN
 docker compose up -d
 ```
 
-После старта:
+После старта (хостовые порты берутся из `.env`, в скобках — дефолты;
+`BIND_IP` выбирает интерфейс, по умолчанию `127.0.0.1`):
 
-| Сервис | Адрес |
-|---|---|
-| Gateway API | http://127.0.0.1:8085 (health: `/health`) |
-| Streamlit UI | http://127.0.0.1:8501 |
-| Temporal UI | http://127.0.0.1:8233 |
-| OpenHands | http://127.0.0.1:8000 |
+| Сервис | Адрес | Переменная `.env` |
+|---|---|---|
+| Gateway API | `http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}` (health: `/health`) | `ORCHESTRATOR_GATEWAY_PORT` |
+| Streamlit UI | `http://127.0.0.1:${STREAMLIT_PORT:-8501}` | `STREAMLIT_PORT` |
+| Temporal UI | `http://127.0.0.1:8233` | — |
+| OpenHands | `http://127.0.0.1:${AGENT_CANVAS_PORT:-8000}` | `AGENT_CANVAS_PORT` |
+| Temporal (gRPC) | `${BIND_IP:-127.0.0.1}:${TEMPORAL_PORT:-7233}` | `TEMPORAL_PORT` |
 
 Остановка: `docker compose down`.
 
@@ -252,7 +260,7 @@ English version: [`securing-with-npm-and-cloudflare.md`](docs/deployment/securin
 ### Через REST API
 
 ```bash
-curl -X POST http://127.0.0.1:8085/api/v1/plan/direct \
+curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H 'Content-Type: application/json' \
   -d '{"raw_json": "{\"tasks\": [{\"id\": \"step_1\", \"title\": \"Hello\", \"prompt\": \"Создай файл hello.txt с текстом hi\", \"depends_on\": [], \"engine\": \"openhands\"}]}", "auto_approve": true}'
 ```
@@ -371,7 +379,7 @@ JSON-планов), — в [`AGENTS.md`](./AGENTS.ru.md) → «Инструме�
 Короткий запуск через cURL (план берётся из файла напрямую):
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://localhost:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d @examples/self-update.json
 ```
@@ -379,7 +387,7 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 То же самое с Auto-approve (без ручного подтверждения):
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://localhost:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d "$(python3 -c 'import json; d=json.load(open("examples/self-update.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
 ```
@@ -400,6 +408,10 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 | `GITHUB_TOKEN` | Для клонирования и создания PR | — |
 | `GIT_TERMINAL_PROMPT` | Отключает интерактивные подсказки git (агент не зависает) | `0` |
 | `BIND_IP` | IP публикации портов | `127.0.0.1` |
+| `ORCHESTRATOR_GATEWAY_PORT` | Хост-порт Gateway API | `8085` |
+| `STREAMLIT_PORT` | Хост-порт Streamlit UI | `8501` |
+| `AGENT_CANVAS_PORT` | Хост-порт OpenHands / agent-canvas | `8000` |
+| `TEMPORAL_PORT` | Хост-порт gRPC-фронтенда Temporal | `7233` |
 | `CLEANUP_WORKSPACE` | Удалять workspace после workflow | `true` |
 | `WAVE_MAX_CONCURRENCY` | Ширина волны DAG | `4` |
 
