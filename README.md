@@ -174,14 +174,6 @@ Captured from the live stack at 1920×1080.
 
 ![CLI diagnostics](docs/assets/cli-diagnostics.png)
 
-Planned assets (to be added):
-
-| File | Description |
-|---|---|
-| `docs/assets/streamlit-approval.png` | The HITL approval gate (approve / reject signals). |
-| `docs/assets/pull-request.png` | The auto-created GitHub Pull Request. |
-| `docs/assets/demo.gif` | 30-second full-flow demo (plan → run → waves → PR). |
-
 ## Quick start
 
 **Prerequisites:** Docker Engine + Docker Compose v2, ≥8 GB RAM, and an LLM API

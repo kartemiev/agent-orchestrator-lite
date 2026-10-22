@@ -137,15 +137,19 @@
 
 ### Как читать этот DAG
 
-```
-Wave 1  (Init)             task_0_git_sync
-                                 │
-                ┌────────────────┴────────────────┐
-Wave 2  (Dev)   task_a_db_migration        task_b_email_module
-                └────────────────┬────────────────┘
-Wave 3  (API)                task_2_ws_integration
-                                 │
-Wave 4  (Tests+Delivery)   task_3_tests_and_deliver
+```mermaid
+flowchart TD
+    git["task_0_git_sync<br/>(Wave 1 · Init)"]
+    db["task_a_db_migration<br/>(Wave 2 · Dev)"]
+    email["task_b_email_module<br/>(Wave 2 · Dev)"]
+    ws["task_2_ws_integration<br/>(Wave 3 · API)"]
+    deliver["task_3_tests_and_deliver<br/>(Wave 4 · Tests+Delivery)"]
+
+    git --> db
+    git --> email
+    db --> ws
+    email --> ws
+    ws --> deliver
 ```
 
 - `task_0_git_sync` выполняется первым и в одиночку — без клона правки упали бы

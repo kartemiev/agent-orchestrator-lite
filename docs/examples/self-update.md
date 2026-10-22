@@ -27,15 +27,19 @@ failed one is recorded in the workflow summary.
 
 ## DAG graph by waves
 
-```
-Wave 1  (Init)             task_0_git_sync
-                                 │
-                ┌────────────────┴────────────────┐
-Wave 2  (Dev)   task_a_backend_docs        task_b_ui_statuses
-                └────────────────┬────────────────┘
-Wave 3  (Verify)              task_2_tests
-                                 │
-Wave 4  (Delivery)          task_3_deliver
+```mermaid
+flowchart TD
+    git["task_0_git_sync<br/>(Wave 1 · Init)"]
+    backend["task_a_backend_docs<br/>(Wave 2 · Dev)"]
+    ui["task_b_ui_statuses<br/>(Wave 2 · Dev)"]
+    tests["task_2_tests<br/>(Wave 3 · Verify)"]
+    deliver["task_3_deliver<br/>(Wave 4 · Delivery)"]
+
+    git --> backend
+    git --> ui
+    backend --> tests
+    ui --> tests
+    tests --> deliver
 ```
 
 ### Wave 1 — Init

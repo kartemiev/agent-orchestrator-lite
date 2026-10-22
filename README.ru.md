@@ -178,14 +178,6 @@ flowchart LR
 
 ![CLI diagnostics](docs/assets/cli-diagnostics.png)
 
-Планируемые ассеты (будут добавлены):
-
-| Файл | Описание |
-|---|---|
-| `docs/assets/streamlit-approval.png` | Гейт подтверждения HITL (сигналы approve / reject). |
-| `docs/assets/pull-request.png` | Автоматически созданный GitHub Pull Request. |
-| `docs/assets/demo.gif` | Демо полного цикла за 30 секунд (план → запуск → волны → PR). |
-
 ## Быстрый старт
 
 **Требования:** Docker Engine + Docker Compose v2, ≥8 ГБ RAM и ключ LLM API

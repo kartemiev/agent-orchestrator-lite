@@ -7,7 +7,7 @@
 
 ---
 
-## 1. Current repository map (Current Tree)
+## 1. Repository map before migration (Historical)
 
 ```text
 agent-orchestrator-lite/
@@ -37,6 +37,52 @@ agent-orchestrator-lite/
 │   └── requirements.txt
 └── workspace/
     └── .gitkeep             # empty runtime directory (bind-mounted into containers)
+```
+
+### Current repository map (after migration)
+
+```text
+agent-orchestrator-lite/
+├── .dockerignore
+├── .env.example
+├── .gitignore
+├── .github/                  # community files: CONTRIBUTING, SECURITY, CoC, issue/PR templates
+├── AGENTS.md                 # JSON plan spec (system prompt for LLMs)
+├── AGENTS.ru.md
+├── LICENSE                   # MIT
+├── README.md
+├── README.ru.md
+├── docker/
+│   └── openhands-entrypoint.sh
+├── docker-compose.yml
+├── docs/
+│   ├── assets/               # screenshots (PNG)
+│   ├── blueprints/           # tree-refactoring-blueprint.md (+ .ru.md)
+│   ├── deployment/           # securing-with-npm-and-cloudflare.md (+ .ru.md)
+│   ├── examples/             # notification-service.md, self-update.md (+ .ru.md)
+│   ├── openhands-setup.md
+│   └── openhands-setup.ru.md
+├── examples/
+│   ├── notification-service.json
+│   ├── notification-service-en.json
+│   ├── self-update.json
+│   └── self-update-en.json
+├── orchestrator/
+│   ├── Dockerfile
+│   ├── activities.py
+│   ├── main.py
+│   ├── requirements.txt
+│   ├── worker.py
+│   └── workflows.py
+├── scripts/
+│   ├── agent-cli.py
+│   └── capture-screenshots.py
+├── ui/
+│   ├── Dockerfile
+│   ├── app.py
+│   └── requirements.txt
+└── workspace/
+    └── .gitkeep
 ```
 
 ---
