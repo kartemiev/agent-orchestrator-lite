@@ -4,12 +4,12 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
-  <a href="#"><img alt="Python 3.11" src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white"></a>
-  <a href="#"><img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.100-009688?logo=fastapi&logoColor=white"></a>
-  <a href="#"><img alt="Temporal" src="https://img.shields.io/badge/Temporal-1.25-1b1b1b?logo=temporal&logoColor=white"></a>
-  <a href="#"><img alt="Streamlit" src="https://img.shields.io/badge/Streamlit-1.30-FF4B4B?logo=streamlit&logoColor=white"></a>
-  <a href="#"><img alt="OpenHands" src="https://img.shields.io/badge/OpenHands-1.10-FF6B00"></a>
-  <a href="#"><img alt="Docker Compose" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white"></a>
+  <a href="https://www.python.org/"><img alt="Python 3.11" src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white"></a>
+  <a href="https://fastapi.tiangolo.com/"><img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.100-009688?logo=fastapi&logoColor=white"></a>
+  <a href="https://temporal.io/"><img alt="Temporal" src="https://img.shields.io/badge/Temporal-1.25-1b1b1b?logo=temporal&logoColor=white"></a>
+  <a href="https://streamlit.io/"><img alt="Streamlit" src="https://img.shields.io/badge/Streamlit-1.30-FF4B4B?logo=streamlit&logoColor=white"></a>
+  <a href="https://github.com/All-Hands-AI/OpenHands"><img alt="OpenHands" src="https://img.shields.io/badge/OpenHands-1.10-FF6B00"></a>
+  <a href="https://docs.docker.com/compose/"><img alt="Docker Compose" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white"></a>
   <a href="https://github.com/kartemiev/agent-orchestrator-lite"><img alt="GitHub stars" src="https://img.shields.io/github/stars/kartemiev/agent-orchestrator-lite?style=social"></a>
   <a href="https://github.com/kartemiev/agent-orchestrator-lite"><img alt="Last commit" src="https://img.shields.io/github/last-commit/kartemiev/agent-orchestrator-lite"></a>
 </p>
@@ -57,6 +57,9 @@
 - [Переменные окружения](#переменные-окружения)
   - [Лимиты ресурсов и рекомендации по памяти](#лимиты-ресурсов-и-рекомендации-по-памяти)
 - [Структура](#структура)
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
 
 ## Концепции и терминология
 
@@ -185,6 +188,9 @@ flowchart LR
 
 ## Быстрый старт
 
+**Требования:** Docker Engine + Docker Compose v2, ≥8 ГБ RAM и ключ LLM API
+(`LLM_API_KEY`).
+
 ```bash
 cd agent-orchestrator-lite
 cp .env.example .env        # заполните LLM_API_KEY и GITHUB_TOKEN
@@ -241,9 +247,10 @@ curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/dir
 
 ### Через UI
 
-1. Вставьте готовый JSON-план в поле «Готовый JSON-план».
-2. Отметьте `Auto-approve` (или утвердите план вручную в панели мониторинга).
-3. Нажмите «Запустить».
+1. Вставьте готовый JSON-план в поле «**1. Готовый JSON-план**».
+2. Отметьте «**⚡ Auto-approve (запустить без ручного подтверждения)**»
+   (или утвердите план вручную в панели мониторинга).
+3. Нажмите «**⚡ Запустить с готовым JSON-планом**».
 
 ### Через CLI
 
@@ -253,22 +260,22 @@ curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/dir
 
 ```bash
 # Запуск спринта (auto-approve + дождаться завершения)
-python scripts/agent-cli.py submit examples/self-update.json --auto-approve --wait
+python3 scripts/agent-cli.py submit examples/self-update.json --auto-approve --wait
 
 # Краткий статус волн и задач
-python scripts/agent-cli.py status <workflow_id>
+python3 scripts/agent-cli.py status <workflow_id>
 
 # Глубокая инспекция: шаги DAG -> сессии OpenHands, состояния контейнеров, ошибки
-python scripts/agent-cli.py inspect <workflow_id>
+python3 scripts/agent-cli.py inspect <workflow_id>
 
 # Точечные логи (оркестратор + OpenHands)
-python scripts/agent-cli.py logs <workflow_id> [--phase <task_id>]
+python3 scripts/agent-cli.py logs <workflow_id> [--phase <task_id>]
 
 # LLM-диагностика (DeepSeek) упавшего спринта
-python scripts/agent-cli.py diagnose <workflow_id>
+python3 scripts/agent-cli.py diagnose <workflow_id>
 
 # Список спринтов (workflow) за последние 24 часа
-python scripts/agent-cli.py list --since 24h --limit 20
+python3 scripts/agent-cli.py list --since 24h --limit 20
 ```
 
 `list` запрашивает у Temporal активные и завершённые спринты (`RUNNING`,
@@ -282,12 +289,12 @@ python scripts/agent-cli.py list --since 24h --limit 20
 работает напрямую внутри контейнера:
 
 ```bash
-docker compose exec agent-orchestrator python /app/scripts/agent-cli.py status <workflow_id>
+docker compose exec agent-orchestrator python3 /app/scripts/agent-cli.py status <workflow_id>
 # либо по имени контейнера из docker-compose.yml:
-docker exec agent-orchestrator-lite python /app/scripts/agent-cli.py status <workflow_id>
+docker exec agent-orchestrator-lite python3 /app/scripts/agent-cli.py status <workflow_id>
 ```
 
-Полный список команд и опций: `python scripts/agent-cli.py --help`.
+Полный список команд и опций: `python3 scripts/agent-cli.py --help`.
 
 Инструкция для AI-агентов, работающих с репозиторием (как проверять статус
 спринтов, делать самодиагностику падений и читать логи перед правкой кода или
@@ -340,13 +347,15 @@ JSON-планов), — в [`AGENTS.md`](./AGENTS.ru.md) → «Инструме�
 
 📘 **[Сквозной туториал: разработка фичи с ChatGPT + Streamlit](docs/examples/notification-service.ru.md)** —
 сценарий «от и до»: проектируем DAG-план через внешний LLM-чат и исполняем его
-в оркестраторе (готовый план: [`notification-service.json`](./examples/notification-service.json)).
+в оркестраторе (готовый план: [`notification-service.json`](./examples/notification-service.json);
+промпты на английском: [`notification-service-en.json`](./examples/notification-service-en.json)).
 
 ### Самообновление репозитория
 
 Готовый пример «оркестратор обновляет сам себя» находится в
-[`self-update.json`](./examples/self-update.json), а его подробное описание —
-в [`self-update.md`](./docs/examples/self-update.ru.md).
+[`self-update.json`](./examples/self-update.json) (промпты на английском:
+[`self-update-en.json`](./examples/self-update-en.json)), а его подробное
+описание — в [`self-update.md`](./docs/examples/self-update.ru.md).
 
 Короткий запуск через cURL (план берётся из файла напрямую):
 
@@ -442,7 +451,9 @@ scripts/
   agent-cli.py   CLI: submit / status / inspect / logs / diagnose / list
 examples/
   self-update.json            JSON-план «самообновление репозитория»
+  self-update-en.json         То же, промпты на английском
   notification-service.json   JSON-план «Notification Service»
+  notification-service-en.json  То же, промпты на английском
 docs/
   openhands-setup.md          Настройка OpenHands и LLM-провайдеров
   openhands-setup.ru.md       То же на русском
@@ -466,3 +477,16 @@ README.ru.md                  Главный README (Русский)
 .dockerignore                 Правила исключения для сборки Docker
 LICENSE                       MIT
 ```
+
+## Contributing
+
+Мы рады вкладу! См. [CONTRIBUTING.md](.github/CONTRIBUTING.md) — как сообщить об
+ошибке, предложить фичу или открыть Pull Request.
+
+## Security
+
+Нашли уязвимость? Сообщите приватно — см. [SECURITY.md](.github/SECURITY.md).
+
+## License
+
+[MIT](LICENSE) © участники agent-orchestrator-lite.

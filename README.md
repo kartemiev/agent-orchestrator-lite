@@ -4,12 +4,12 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
-  <a href="#"><img alt="Python 3.11" src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white"></a>
-  <a href="#"><img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.100-009688?logo=fastapi&logoColor=white"></a>
-  <a href="#"><img alt="Temporal" src="https://img.shields.io/badge/Temporal-1.25-1b1b1b?logo=temporal&logoColor=white"></a>
-  <a href="#"><img alt="Streamlit" src="https://img.shields.io/badge/Streamlit-1.30-FF4B4B?logo=streamlit&logoColor=white"></a>
-  <a href="#"><img alt="OpenHands" src="https://img.shields.io/badge/OpenHands-1.10-FF6B00"></a>
-  <a href="#"><img alt="Docker Compose" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white"></a>
+  <a href="https://www.python.org/"><img alt="Python 3.11" src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white"></a>
+  <a href="https://fastapi.tiangolo.com/"><img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.100-009688?logo=fastapi&logoColor=white"></a>
+  <a href="https://temporal.io/"><img alt="Temporal" src="https://img.shields.io/badge/Temporal-1.25-1b1b1b?logo=temporal&logoColor=white"></a>
+  <a href="https://streamlit.io/"><img alt="Streamlit" src="https://img.shields.io/badge/Streamlit-1.30-FF4B4B?logo=streamlit&logoColor=white"></a>
+  <a href="https://github.com/All-Hands-AI/OpenHands"><img alt="OpenHands" src="https://img.shields.io/badge/OpenHands-1.10-FF6B00"></a>
+  <a href="https://docs.docker.com/compose/"><img alt="Docker Compose" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white"></a>
   <a href="https://github.com/kartemiev/agent-orchestrator-lite"><img alt="GitHub stars" src="https://img.shields.io/github/stars/kartemiev/agent-orchestrator-lite?style=social"></a>
   <a href="https://github.com/kartemiev/agent-orchestrator-lite"><img alt="Last commit" src="https://img.shields.io/github/last-commit/kartemiev/agent-orchestrator-lite"></a>
 </p>
@@ -56,6 +56,9 @@ context, or break the existing codebase.
 - [Environment variables](#environment-variables)
   - [Resource Limits & Memory Recommendations](#resource-limits--memory-recommendations)
 - [Structure](#structure)
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
 
 ## Key Concepts & Glossary
 
@@ -181,6 +184,9 @@ Planned assets (to be added):
 
 ## Quick start
 
+**Prerequisites:** Docker Engine + Docker Compose v2, ≥8 GB RAM, and an LLM API
+key (`LLM_API_KEY`).
+
 ```bash
 cd agent-orchestrator-lite
 cp .env.example .env        # fill in LLM_API_KEY and GITHUB_TOKEN
@@ -238,9 +244,13 @@ Response: `{"status": "triggered", "workflow_id": "direct-plan-...", ...}`.
 
 ### Via the UI
 
-1. Paste a ready-made JSON plan into the "Ready-made JSON plan" field.
-2. Tick `Auto-approve` (or approve the plan manually in the monitoring panel).
-3. Press "Run".
+1. Paste a ready-made JSON plan into the "**1. Готовый JSON-план**"
+   ("Ready-made JSON plan") field.
+2. Tick "**⚡ Auto-approve (запустить без ручного подтверждения)**"
+   ("Auto-approve — run without manual confirmation"), or approve the plan
+   manually in the monitoring panel.
+3. Press "**⚡ Запустить с готовым JSON-планом**" ("Run with the ready-made
+   JSON plan").
 
 ### Via the CLI
 
@@ -250,22 +260,22 @@ host and inside the orchestrator container.
 
 ```bash
 # Launch a sprint (auto-approve + wait for completion)
-python scripts/agent-cli.py submit examples/self-update.json --auto-approve --wait
+python3 scripts/agent-cli.py submit examples/self-update.json --auto-approve --wait
 
 # Brief status of waves and tasks
-python scripts/agent-cli.py status <workflow_id>
+python3 scripts/agent-cli.py status <workflow_id>
 
 # Deep inspection: DAG steps -> OpenHands sessions, container states, errors
-python scripts/agent-cli.py inspect <workflow_id>
+python3 scripts/agent-cli.py inspect <workflow_id>
 
 # Targeted logs (orchestrator + OpenHands)
-python scripts/agent-cli.py logs <workflow_id> [--phase <task_id>]
+python3 scripts/agent-cli.py logs <workflow_id> [--phase <task_id>]
 
 # LLM (DeepSeek) diagnosis of a failed sprint
-python scripts/agent-cli.py diagnose <workflow_id>
+python3 scripts/agent-cli.py diagnose <workflow_id>
 
 # List sprints (workflows) for the last 24 hours
-python scripts/agent-cli.py list --since 24h --limit 20
+python3 scripts/agent-cli.py list --since 24h --limit 20
 ```
 
 `list` queries Temporal for active and finished sprints (`RUNNING`,
@@ -279,12 +289,12 @@ Temporal-heavy commands it re-runs itself inside the orchestrator container via
 `docker exec`. It also works directly inside the container:
 
 ```bash
-docker compose exec agent-orchestrator python /app/scripts/agent-cli.py status <workflow_id>
+docker compose exec agent-orchestrator python3 /app/scripts/agent-cli.py status <workflow_id>
 # or, using the container name from docker-compose.yml:
-docker exec agent-orchestrator-lite python /app/scripts/agent-cli.py status <workflow_id>
+docker exec agent-orchestrator-lite python3 /app/scripts/agent-cli.py status <workflow_id>
 ```
 
-Run `python scripts/agent-cli.py --help` for the full list of commands and options.
+Run `python3 scripts/agent-cli.py --help` for the full list of commands and options.
 
 For the guidance given to AI agents working on this repository (how to check
 sprint status, self-diagnose failed runs and read logs before editing code or
@@ -336,13 +346,15 @@ delivery and workspace cleanup happen.
 
 📘 **[End-to-end tutorial: building a feature with ChatGPT + Streamlit](docs/examples/notification-service.md)** —
 a start-to-finish scenario: design a DAG plan in an external LLM chat and run it
-in the orchestrator (ready plan: [`notification-service.json`](./examples/notification-service.json)).
+in the orchestrator (ready plan: [`notification-service.json`](./examples/notification-service.json);
+English prompts: [`notification-service-en.json`](./examples/notification-service-en.json)).
 
 ### Repository self-update
 
 The ready-made "the orchestrator updates itself" example lives in
-[`self-update.json`](./examples/self-update.json), and its detailed description
-is in [`self-update.md`](./docs/examples/self-update.md).
+[`self-update.json`](./examples/self-update.json) (English prompts:
+[`self-update-en.json`](./examples/self-update-en.json)), and its detailed
+description is in [`self-update.md`](./docs/examples/self-update.md).
 
 Short run via cURL (the plan is taken from the file directly):
 
@@ -438,7 +450,9 @@ scripts/
   agent-cli.py   CLI: submit / status / inspect / logs / diagnose / list
 examples/
   self-update.json            JSON plan "repository self-update"
+  self-update-en.json         Same plan, English prompts
   notification-service.json   JSON plan "Notification Service"
+  notification-service-en.json  Same plan, English prompts
 docs/
   openhands-setup.md          OpenHands and LLM provider setup
   openhands-setup.ru.md       Same in Russian
@@ -462,3 +476,17 @@ README.ru.md                  Main README (Russian)
 .dockerignore                 Docker build ignore rules
 LICENSE                       MIT
 ```
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for
+guidelines on reporting bugs, proposing features and opening pull requests.
+
+## Security
+
+Found a vulnerability? Please report it privately — see
+[SECURITY.md](.github/SECURITY.md).
+
+## License
+
+[MIT](LICENSE) © agent-orchestrator-lite contributors.

@@ -1,0 +1,51 @@
+{
+  "graph_name": "Self-Update Sprint: agent-orchestrator-lite",
+  "reasoning": "The orchestrator improves its own repository: it extends the healthcheck API, improves the rendering of wave statuses in the Streamlit UI, runs checks and delivers the changes via a Pull Request.",
+  "tasks": [
+    {
+      "id": "task_0_git_sync",
+      "title": "Git Sync: clone agent-orchestrator-lite",
+      "prompt": "Clone or update (git pull) the repository https://github.com/kartemiev/agent-orchestrator-lite into the current working directory and prepare the working environment.",
+      "priority": 1,
+      "depends_on": [],
+      "model": "deepseek-v4-flash",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_a_backend_docs",
+      "title": "Backend/Docs: detailed healthcheck",
+      "prompt": "In the file orchestrator/main.py add a GET /health/details endpoint that returns JSON with the service status, the current UTC time and the API version. Update README.md: add a description of the new endpoint in the Gateway API section.",
+      "priority": 2,
+      "depends_on": ["task_0_git_sync"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_b_ui_statuses",
+      "title": "UI: improve wave status rendering",
+      "prompt": "In the file ui/app.py improve the rendering of the workflow status: display a human-readable Temporal status name and a brief task summary (how many completed, how many failed). Keep the existing approve/reject button logic.",
+      "priority": 2,
+      "depends_on": ["task_0_git_sync"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_2_tests",
+      "title": "Tests & Verification",
+      "prompt": "Run a syntax check over the Python files: python -m py_compile orchestrator/main.py orchestrator/worker.py orchestrator/workflows.py orchestrator/activities.py ui/app.py. Make sure there are no errors; fix the issues you find if any.",
+      "priority": 3,
+      "depends_on": ["task_a_backend_docs", "task_b_ui_statuses"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_3_deliver",
+      "title": "Delivery: commit, push, PR",
+      "prompt": "Commit the changes with a clear message, push the current branch to origin via git push origin HEAD:refs/heads/feature/self-update and open a Pull Request from the feature/self-update branch into main with a description of the improvements.",
+      "priority": 4,
+      "depends_on": ["task_2_tests"],
+      "model": "deepseek-v4-flash",
+      "engine": "openhands"
+    }
+  ]
+}

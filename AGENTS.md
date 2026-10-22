@@ -126,11 +126,11 @@ explanations outside the JSON): with the mandatory git-sync first task, an acycl
 depends_on, and a split into parallel waves.
 ```
 
-2. Paste the resulting JSON into the Streamlit UI (`http://localhost:8501`) or send
+2. Paste the resulting JSON into the Streamlit UI (`http://127.0.0.1:${STREAMLIT_PORT:-8501}`) or send
    it to `POST /api/v1/plan/direct` (see [`README.md`](./README.md)).
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d @examples/notification-service.json
 ```

@@ -91,7 +91,7 @@ Wave 4  (Delivery)          task_3_deliver
 
 ### Вариант 1 — Streamlit UI
 
-1. Открой `http://localhost:8501`.
+1. Открой `http://127.0.0.1:${STREAMLIT_PORT:-8501}`.
 2. Открой файл [`self-update.json`](../../examples/self-update.json) и скопируй его
    содержимое целиком.
 3. Вставь JSON в поле «**Готовый JSON-план**».
@@ -105,7 +105,7 @@ Wave 4  (Delivery)          task_3_deliver
 ### Вариант 2 — cURL / REST API
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d @examples/self-update.json
 ```
@@ -125,7 +125,7 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 Запуск сразу без ручного подтверждения (Auto-approve):
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d "$(python3 -c 'import json; d=json.load(open("examples/self-update.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
 ```
@@ -133,12 +133,12 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 Либо вручную обернуть план в ключ `raw_json`:
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d '{"raw_json": "<содержимое examples/self-update.json одной строкой>", "auto_approve": true}'
 ```
 
-После запуска за прогрессом можно следить в Temporal UI (`http://localhost:8233`)
+После запуска за прогрессом можно следить в Temporal UI (`http://127.0.0.1:8233`)
 или через `GET /api/v1/...`/клиент Temporal по `workflow_id`.
 
 ## Чего ожидать в результате

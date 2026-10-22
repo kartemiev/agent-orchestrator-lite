@@ -126,11 +126,11 @@
 depends_on и разбивкой на параллельные волны.
 ```
 
-2. Полученный JSON вставь в Streamlit UI (`http://localhost:8501`) или отправь
+2. Полученный JSON вставь в Streamlit UI (`http://127.0.0.1:${STREAMLIT_PORT:-8501}`) или отправь
    на `POST /api/v1/plan/direct` (см. [`README.md`](./README.ru.md)).
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d @examples/notification-service.json
 ```

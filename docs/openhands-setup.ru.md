@@ -263,7 +263,7 @@ OPENHANDS_SESSION_API_KEY=dev
    ```
 3. Проверьте healthcheck оркестратора:
    ```bash
-   curl http://127.0.0.1:8085/health
+   curl http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/health
    ```
    → `{"status": "ok"}`
 4. Запустите минимальный план и проверьте логи фазы в `docker logs

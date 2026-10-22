@@ -161,7 +161,7 @@ Wave 4  (Tests+Delivery)   task_3_tests_and_deliver
 
 ### Вариант 1 — Streamlit UI
 
-1. Открой Streamlit Dashboard: <http://localhost:8501>.
+1. Открой Streamlit Dashboard: <http://127.0.0.1:${STREAMLIT_PORT:-8501}>.
 2. Вставь полученный из ChatGPT JSON в поле «**Готовый JSON-план**»
    (или скопируй содержимое [`notification-service.json`](../../examples/notification-service.json)).
 3. Отметь чекбокс «**⚡ Auto-approve**», чтобы пропустить ручное подтверждение
@@ -176,7 +176,7 @@ Wave 4  (Tests+Delivery)   task_3_tests_and_deliver
 ### Вариант 2 — cURL / REST API
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d @examples/notification-service.json
 ```
@@ -184,12 +184,12 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 Сразу без ручного подтверждения:
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d "$(python3 -c 'import json; d=json.load(open("examples/notification-service.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
 ```
 
-Прогресс — в Temporal UI (<http://localhost:8233>) по `workflow_id` из ответа
+Прогресс — в Temporal UI (<http://127.0.0.1:8233>) по `workflow_id` из ответа
 API (`{"status": "triggered", "workflow_id": "direct-plan-..."}`).
 
 > **Про репозиторий-заглушку.** В плане используется

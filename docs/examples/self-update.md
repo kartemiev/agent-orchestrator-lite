@@ -93,7 +93,7 @@ Delivery comes last and only with green tests.
 
 ### Option 1 — Streamlit UI
 
-1. Open `http://localhost:8501`.
+1. Open `http://127.0.0.1:${STREAMLIT_PORT:-8501}`.
 2. Open the file [`self-update.json`](../../examples/self-update.json) and copy its
    content in full.
 3. Paste the JSON into the "**Готовый JSON-план**" ("Ready-made JSON plan") field.
@@ -108,7 +108,7 @@ Delivery comes last and only with green tests.
 ### Option 2 — cURL / REST API
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d @examples/self-update.json
 ```
@@ -128,7 +128,7 @@ Expected response:
 Run immediately without manual confirmation (Auto-approve):
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d "$(python3 -c 'import json; d=json.load(open("examples/self-update.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
 ```
@@ -136,12 +136,12 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 Or wrap the plan into the `raw_json` key by hand:
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d '{"raw_json": "<content of examples/self-update.json on a single line>", "auto_approve": true}'
 ```
 
-After the run you can follow the progress in the Temporal UI (`http://localhost:8233`)
+After the run you can follow the progress in the Temporal UI (`http://127.0.0.1:8233`)
 or via `GET /api/v1/...`/the Temporal client by `workflow_id`.
 
 ## What to expect as a result

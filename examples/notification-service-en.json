@@ -1,0 +1,51 @@
+{
+  "graph_name": "Notification Service: WebSocket + Email",
+  "reasoning": "Add a notification service: a DB migration and the Notification model, a dedicated Email-sending module, a WebSocket endpoint with integration, pytest tests and delivery via a Pull Request.",
+  "tasks": [
+    {
+      "id": "task_0_git_sync",
+      "title": "Git Sync: clone the repository",
+      "prompt": "Clone or update (git pull) the repository https://github.com/your-org/your-web-app into the current working directory and prepare the working environment.",
+      "priority": 1,
+      "depends_on": [],
+      "model": "deepseek-v4-flash",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_a_db_migration",
+      "title": "DB: migration and the Notification model",
+      "prompt": "Create a database migration and the Notification model (id, user_id, type, payload, read, created_at). Use the project's existing ORM (SQLAlchemy/Prisma) and update DATABASE.md with a description of the new table.",
+      "priority": 2,
+      "depends_on": ["task_0_git_sync"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_b_email_module",
+      "title": "Email: dedicated sending module",
+      "prompt": "Create a dedicated email-sending module: a send_email(to, subject, body) function via an SMTP/API provider, configuration through environment variables, and simple email templates. Update ARCHITECTURE.md with a description of the module.",
+      "priority": 2,
+      "depends_on": ["task_0_git_sync"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_2_ws_integration",
+      "title": "API: WebSocket endpoint and integration",
+      "prompt": "Add a WebSocket endpoint /ws/notifications that delivers notifications to subscribed clients. Integrate it with the Notification model and the Email module: when a notification is created, simultaneously send a WebSocket message and an Email. Update API_SPEC.md with a description of the new endpoint.",
+      "priority": 3,
+      "depends_on": ["task_a_db_migration", "task_b_email_module"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    },
+    {
+      "id": "task_3_tests_and_deliver",
+      "title": "Tests & Delivery",
+      "prompt": "Write pytest tests for the Notification model, the Email module and the WebSocket endpoint. Run python -m py_compile over the changed files and pytest; fix the issues you find. Then commit the changes with a clear message, push the feature/notification-service branch and open a Pull Request into main with a description of the feature.",
+      "priority": 4,
+      "depends_on": ["task_2_ws_integration"],
+      "model": "deepseek-v4-pro",
+      "engine": "openhands"
+    }
+  ]
+}

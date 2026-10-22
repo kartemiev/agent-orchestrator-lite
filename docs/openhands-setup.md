@@ -265,7 +265,7 @@ both variables.
    ```
 3. Check the orchestrator healthcheck:
    ```bash
-   curl http://127.0.0.1:8085/health
+   curl http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/health
    ```
    → `{"status": "ok"}`
 4. Run a minimal plan and inspect the phase logs in `docker logs

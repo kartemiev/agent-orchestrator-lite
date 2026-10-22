@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/kartemiev/agent-orchestrator-lite/tree/main/docs
+    about: Read the docs before opening an issue.
+  - name: Security
+    url: https://github.com/kartemiev/agent-orchestrator-lite/security/policy
+    about: Report a security vulnerability privately.

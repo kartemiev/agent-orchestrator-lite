@@ -161,7 +161,7 @@ Wave 4  (Tests+Delivery)   task_3_tests_and_deliver
 
 ### Option 1 — Streamlit UI
 
-1. Open the Streamlit Dashboard: <http://localhost:8501>.
+1. Open the Streamlit Dashboard: <http://127.0.0.1:${STREAMLIT_PORT:-8501}>.
 2. Paste the JSON you got from ChatGPT into the "**Готовый JSON-план**"
    ("Ready-made JSON plan") field (or copy the content of
    [`notification-service.json`](../../examples/notification-service.json)).
@@ -178,7 +178,7 @@ Wave 4  (Tests+Delivery)   task_3_tests_and_deliver
 ### Option 2 — cURL / REST API
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d @examples/notification-service.json
 ```
@@ -186,12 +186,12 @@ curl -X POST http://localhost:8085/api/v1/plan/direct \
 Immediately, without manual confirmation:
 
 ```bash
-curl -X POST http://localhost:8085/api/v1/plan/direct \
+curl -X POST http://127.0.0.1:${ORCHESTRATOR_GATEWAY_PORT:-8085}/api/v1/plan/direct \
   -H "Content-Type: application/json" \
   -d "$(python3 -c 'import json; d=json.load(open("examples/notification-service.json")); print(json.dumps({"raw_json": json.dumps(d), "auto_approve": True}))')"
 ```
 
-Progress — in the Temporal UI (<http://localhost:8233>) by the `workflow_id` from
+Progress — in the Temporal UI (<http://127.0.0.1:8233>) by the `workflow_id` from
 the API response (`{"status": "triggered", "workflow_id": "direct-plan-..."}`).
 
 > **About the stub repository.** The plan uses
