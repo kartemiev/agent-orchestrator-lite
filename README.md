@@ -16,7 +16,7 @@
 
 `agent-orchestrator-lite` is a production-ready Open-Source infrastructure for
 autonomous execution of complex features and refactoring tasks using AI agents
-(OpenHands) managed by Temporal.
+(OpenHands) managed by Temporal — serving as the foundation for an Autonomous SDLC (Software Development Life Cycle) Engine.
 
 ### Why this project?
 When delegating a large or complex feature (e.g., "build a notification service
@@ -35,6 +35,9 @@ context, or break the existing codebase.
   a Pull Request (GitHub) or a Merge Request (GitLab.com / self-hosted).
 - **Optional Notifications:** Get push notifications (ntfy) and HTML email
   reports (Resend) when a sprint awaits approval, succeeds, or fails.
+
+### 🎯 Vision: Towards an Autonomous SDLC Engine
+`agent-orchestrator-lite` goes beyond single-agent coding assistants. By combining **Temporal deterministic workflows**, **Multi-Agent parallelism**, and **Human-in-the-Loop gates**, it provides a solid basis for a fully **Autonomous SDLC Engine** — capable of taking high-level roadmap items and safely driving them to tested, peer-reviewed, and merged production code.
 
 ## Contents
 
